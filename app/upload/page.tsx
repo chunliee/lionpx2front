@@ -1,23 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import ExportMasterModal from "@/components/Modal";
 
 const dataContent: Record<string, string[]> = {
-  data: [
-    "kof",
-    "kif",
-    "sof",
-    "sif",
-    "pof",
-    "def",
-    "fro",
-    "frd",
-    "tuc",
-    "stt",
-    "kpf",
-    "kdf",
-  ],
+  master: ["mn", "ic", "ls", "bc", "mr", "rf", "rt", "dt", "mt", "cm"],
   tbs: [
     "kof",
     "kif",
@@ -32,7 +19,20 @@ const dataContent: Record<string, string[]> = {
     "kpf",
     "kdf",
   ],
-  master: ["mn", "ic", "ls", "bc", "mr", "rf", "rt", "dt", "mt", "cm"],
+  data: [
+    "kof",
+    "kif",
+    "sof",
+    "sif",
+    "pof",
+    "def",
+    "fro",
+    "frd",
+    "tuc",
+    "stt",
+    "kpf",
+    "kdf",
+  ],
 };
 
 interface ActiveJob {
@@ -44,52 +44,81 @@ interface ActiveJob {
   percentage: number;
 }
 
+// Interface untuk data statistik
+interface ItemStats {
+  total_all: number;
+  total_month: number;
+}
+
 export default function UploadPage() {
-  const [activeTab, setActiveTab] = useState("data");
+  const [activeTab, setActiveTab] = useState("master");
   const [selectedMonth, setSelectedMonth] = useState("");
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [exportType, setExportType] = useState("");
   const [activeJobs, setActiveJobs] = useState<ActiveJob[]>([]);
   const [isQueueOpen, setIsQueueOpen] = useState(true);
 
-  // Gunakan optional chaining atau check browser env untuk menghindari error SSR
+  // State untuk menyimpan statistik baris
+  const [stats, setStats] = useState<Record<string, ItemStats>>({});
+
+  const [validFrom, setValidFrom] = useState("");
+  const [validUntil, setValidUntil] = useState("");
+
   const baseUrl =
     typeof window !== "undefined"
       ? `http://${window.location.hostname}:8080`
       : "";
-
   const isMonthEmpty = !selectedMonth || selectedMonth === "";
 
-  // Fungsi Manual Remove Job
+  // FUNGSI FETCH STATISTIK
+  const fetchStats = useCallback(async () => {
+    if (!selectedMonth) return;
+    try {
+      const res = await fetch(
+        `${baseUrl}/stats/${activeTab}?month=${selectedMonth}`,
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setStats(data);
+      }
+    } catch (err) {
+      console.error("Gagal ambil stats:", err);
+    }
+  }, [activeTab, selectedMonth, baseUrl]);
+
   const removeJob = (id: string) => {
     setActiveJobs((prev) => prev.filter((j) => j.jobId !== id));
   };
+  // Refresh stats saat tab atau bulan berubah
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
 
-  // Polling Manager
+  useEffect(() => {
+    if (selectedMonth) {
+      setValidFrom(`${selectedMonth}-01`);
+      setValidUntil(`${selectedMonth}-28`);
+    }
+  }, [selectedMonth]);
+
+  // Polling Jobs (Logic tetap sama)
   useEffect(() => {
     const jobsToPoll = activeJobs.filter(
-      (j) =>
-        j.status !== "done" &&
-        j.status !== "failed" &&
-        j.status !== "completed",
+      (j) => !["done", "failed", "completed"].includes(j.status),
     );
-
     if (jobsToPoll.length === 0) return;
 
     const interval = setInterval(async () => {
       const updatedJobs = await Promise.all(
         activeJobs.map(async (job) => {
-          if (
-            job.status === "done" ||
-            job.status === "failed" ||
-            job.status === "completed"
-          )
-            return job;
-
+          if (["done", "failed", "completed"].includes(job.status)) return job;
           try {
             const res = await fetch(`${baseUrl}/jobs/${job.jobId}`);
             if (!res.ok) return job;
             const data = await res.json();
+
+            // Jika job baru saja selesai, refresh angka baris
+            if (data.status === "completed") setTimeout(fetchStats, 2000);
 
             return {
               ...job,
@@ -103,16 +132,18 @@ export default function UploadPage() {
           }
         }),
       );
-
       setActiveJobs(updatedJobs);
     }, 1500);
-
     return () => clearInterval(interval);
-  }, [activeJobs, baseUrl]);
+  }, [activeJobs, baseUrl, fetchStats]);
 
   const handleFileUpload = async (item: string) => {
     if (isMonthEmpty) {
       alert("Silakan pilih Periode (Bulan) terlebih dahulu.");
+      return;
+    }
+    if (item === "rf" && (!validFrom || !validUntil)) {
+      alert("Harap isi range tanggal Valid From & Until untuk Master RF.");
       return;
     }
 
@@ -123,13 +154,14 @@ export default function UploadPage() {
 
     input.onchange = async (e: any) => {
       const files: File[] = Array.from(e.target.files);
-      if (files.length === 0) return;
-
       for (const file of files) {
         const formData = new FormData();
         formData.append("month", selectedMonth);
         formData.append("file", file);
-
+        if (item === "rf") {
+          formData.append("valid_from", validFrom);
+          formData.append("valid_until", validUntil);
+        }
         try {
           const response = await fetch(
             `${baseUrl}/upload/${activeTab}/${item}`,
@@ -138,38 +170,42 @@ export default function UploadPage() {
               body: formData,
             },
           );
-
           const result = await response.json();
-
           if (response.ok && (result.job_id || result.job_ids)) {
             const finalJobId =
               result.job_id ||
               (Array.isArray(result.job_ids) ? result.job_ids[0] : null);
-
-            if (finalJobId) {
-              const newJob: ActiveJob = {
+            setActiveJobs((prev) => [
+              {
                 jobId: finalJobId,
-                itemName: file.name.toUpperCase(),
+                itemName: `${file.name.toUpperCase()} ${item === "rf" ? `(${validFrom})` : ""}`,
                 progress: 0,
                 status: "pending",
                 total: 0,
                 percentage: 0,
-              };
-
-              setActiveJobs((prev) => [newJob, ...prev]);
-              setIsQueueOpen(true);
-            }
-          } else {
-            alert(`Gagal upload ${file.name}: ${result.error}`);
+              },
+              ...prev,
+            ]);
+            setIsQueueOpen(true);
           }
         } catch (error) {
           console.error(`⚠️ Koneksi terputus`, error);
         }
       }
-      input.value = "";
     };
-
     input.click();
+  };
+
+  const handleDownloadTemplate = (item: string) => {
+    const fileName = `temp_${item.toLowerCase()}.csv`;
+    const folder = activeTab === "master" ? "temp_master" : "temp_data";
+    const filePath = `/${folder}/${fileName}`;
+    const link = document.createElement("a");
+    link.href = filePath;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -184,8 +220,8 @@ export default function UploadPage() {
               onClick={() => setActiveTab(tab)}
               className={`text-left text-lg capitalize transition-all ${
                 activeTab === tab
-                  ? "font-bold text-black"
-                  : "text-gray-400 hover:text-gray-600 rounded-2xl py-6 px-3 bg-gray-100 "
+                  ? "font-bold text-black border-l-4 border-black pl-4"
+                  : "text-gray-400 hover:text-gray-600 rounded-2xl py-6 px-3 bg-gray-100"
               }`}
             >
               {tab}
@@ -202,7 +238,7 @@ export default function UploadPage() {
               {activeTab} Upload List
             </h1>
             <p className="text-xs text-gray-400 mt-1 uppercase">
-              Multiple Uploads Enabled
+              Database Row Tracker Enabled
             </p>
           </div>
           <div className="flex flex-col items-end gap-1">
@@ -211,7 +247,6 @@ export default function UploadPage() {
             </span>
             <input
               type="month"
-              required
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
               className={`border px-4 py-1.5 text-sm font-bold outline-none transition-all ${
@@ -222,45 +257,82 @@ export default function UploadPage() {
         </header>
 
         <div
-          className={`max-w-3xl transition-opacity duration-300 ${isMonthEmpty ? "opacity-40 cursor-not-allowed" : "opacity-100"}`}
+          className={`max-w-3xl space-y-4 transition-opacity duration-300 ${isMonthEmpty ? "opacity-40 cursor-not-allowed" : "opacity-100"}`}
         >
           {dataContent[activeTab].map((item) => (
             <div
               key={item}
-              className={`group flex justify-between items-center border-black py-6 px-3 hover:bg-gray-50 transition-all mt-2 bg-gray-100 rounded-2xl ${
-                isMonthEmpty ? "pointer-events-none select-none" : ""
-              }`}
+              className="group flex flex-col bg-gray-100 rounded-2xl overflow-hidden border border-transparent hover:border-gray-200 transition-all"
             >
-              <span
-                onClick={() => handleFileUpload(item)}
-                className="text-2xl font-bold uppercase tracking-tighter flex-1 cursor-pointer"
-              >
-                {item}
-              </span>
-
-              <div className="flex items-center gap-4">
-                {activeTab === "master" && (
-                  <button
-                    disabled={isMonthEmpty}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setExportType(`MASTER_${item.toUpperCase()}`);
-                      setIsExportOpen(true);
-                    }}
-                    className="bg-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-gray-200 hover:bg-black hover:text-white transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              <div className="flex justify-between items-center p-6">
+                <div className="flex flex-col">
+                  <span
+                    onClick={() => handleFileUpload(item)}
+                    className="text-2xl font-bold uppercase tracking-tighter cursor-pointer"
                   >
-                    Export
-                  </button>
-                )}
-
-                <div
-                  onClick={() => handleFileUpload(item)}
-                  className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                >
-                  <span className="text-[10px] font-bold uppercase text-gray-400">
-                    Add to Queue
+                    {item}
                   </span>
-                  <i className="ri-add-line text-2xl text-black"></i>
+                  {item === "rf" && (
+                    <div className="flex gap-4 mt-3 p-3 bg-white/50 rounded-lg border border-dashed border-gray-300">
+                      <div className="flex flex-col">
+                        <label className="text-[9px] font-black uppercase text-gray-400">
+                          From
+                        </label>
+                        <input
+                          type="date"
+                          value={validFrom}
+                          onChange={(e) => setValidFrom(e.target.value)}
+                          className="bg-transparent text-xs font-bold outline-none"
+                        />
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-[9px] font-black uppercase text-gray-400">
+                          Until
+                        </label>
+                        <input
+                          type="date"
+                          value={validUntil}
+                          onChange={(e) => setValidUntil(e.target.value)}
+                          className="bg-transparent text-xs font-bold outline-none"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => handleDownloadTemplate(item)}
+                    className="bg-black px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-white hover:bg-gray-800 transition-all shadow-sm"
+                  >
+                    Template
+                  </button>
+                  <div
+                    onClick={() => handleFileUpload(item)}
+                    className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                  >
+                    <i className="ri-add-line text-2xl text-black"></i>
+                  </div>
+                </div>
+              </div>
+
+              {/* STATS BAR (KOTAK KECIL DI BAWAH) */}
+              <div className="flex border-t border-gray-200 bg-white/50 divide-x divide-gray-200">
+                <div className="flex-1 px-6 py-2 flex items-center justify-between">
+                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
+                    Total Master Rows
+                  </span>
+                  <span className="text-xs font-black">
+                    {(stats[item]?.total_all || 0).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex-1 px-6 py-2 flex items-center justify-between bg-black/5">
+                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
+                    Rows in {selectedMonth || "Month"}
+                  </span>
+                  <span className="text-xs font-black text-blue-600">
+                    {(stats[item]?.total_month || 0).toLocaleString()}
+                  </span>
                 </div>
               </div>
             </div>
@@ -268,9 +340,9 @@ export default function UploadPage() {
         </div>
       </main>
 
-      {/* POPUP QUEUE (MANUAL CLOSE) */}
+      {/* POPUP QUEUE (Tetap Sama) */}
       {activeJobs.length > 0 && (
-        <div className="fixed bottom-0 right-8 w-80 bg-white border border-gray-200 shadow-2xl rounded-t-lg overflow-hidden transition-all duration-300 z-50">
+        <div className="fixed bottom-0 right-8 w-80 bg-white border border-gray-200 shadow-2xl rounded-t-lg overflow-hidden z-50">
           <div
             className="bg-gray-900 text-white p-3 flex justify-between items-center cursor-pointer"
             onClick={() => setIsQueueOpen(!isQueueOpen)}
@@ -284,20 +356,19 @@ export default function UploadPage() {
               }
             ></i>
           </div>
-
           {isQueueOpen && (
             <div className="max-h-96 overflow-y-auto p-2 space-y-2 bg-white">
               {activeJobs.map((job) => (
                 <div
                   key={job.jobId}
-                  className="p-3 border-b border-gray-50 last:border-0 relative"
+                  className="p-3 border-b border-gray-50 last:border-0"
                 >
                   <div className="flex justify-between items-start mb-1">
                     <span className="text-[10px] font-bold uppercase truncate w-32">
                       {job.itemName}
                     </span>
                     <div className="flex items-center gap-2">
-                      {job.status === "done" || job.status === "completed" ? (
+                      {job.status === "done" ? (
                         <i className="ri-checkbox-circle-fill text-green-500"></i>
                       ) : job.status === "failed" ? (
                         <i className="ri-error-warning-fill text-red-500"></i>
@@ -306,24 +377,17 @@ export default function UploadPage() {
                           {job.percentage.toFixed(0)}%
                         </span>
                       )}
-                      {/* Tombol Close Manual */}
                       <button
                         onClick={() => removeJob(job.jobId)}
-                        className="hover:bg-gray-100 rounded-full p-0.5 transition-colors group"
+                        className="hover:bg-gray-100 rounded-full p-0.5 transition-colors"
                       >
-                        <i className="ri-close-line text-gray-400 group-hover:text-black font-bold"></i>
+                        <i className="ri-close-line text-gray-400 font-bold"></i>
                       </button>
                     </div>
                   </div>
                   <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
                     <div
-                      className={`h-full transition-all duration-300 ${
-                        job.status === "done" || job.status === "completed"
-                          ? "bg-green-500"
-                          : job.status === "failed"
-                            ? "bg-red-500"
-                            : "bg-blue-600"
-                      }`}
+                      className={`h-full transition-all duration-300 ${job.status === "done" ? "bg-green-500" : job.status === "failed" ? "bg-red-500" : "bg-blue-600"}`}
                       style={{ width: `${job.percentage}%` }}
                     ></div>
                   </div>
@@ -334,7 +398,6 @@ export default function UploadPage() {
         </div>
       )}
 
-      {/* RENDER MODAL EXPORT */}
       <ExportMasterModal
         isOpen={isExportOpen}
         onClose={() => setIsExportOpen(false)}
