@@ -1,37 +1,43 @@
 "use client";
 
 import React, { useState } from "react";
-// Pastikan path import sesuai dengan struktur folder lo
 import ExportICModal from "@/components/Export_ic";
+import ExportUniversalModal from "@/components/Export_ic";
 
 export default function ExportICPage() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // State untuk kontrol modal mana yang buka
+  const [activeModal, setActiveModal] = useState<string | null>(null);
+
+  const menu = [
+    { id: "ic", label: "Master IC" },
+    { id: "ls", label: "Master LS" },
+    { id: "dt", label: "Master DT" },
+    { id: "mt", label: "Master MT" },
+    { id: "cm", label: "Master CM" },
+  ];
 
   return (
     <div className="flex min-h-screen bg-white font-poppins text-black">
-      {/* SIDEBAR */}
       <aside className="w-64 border-r border-gray-100 p-8 flex flex-col fixed h-full">
         <h2 className="font-bold text-xl mb-10 tracking-tight text-gray-400">
           Export Tool
         </h2>
-        <nav className="flex flex-col gap-6">
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className={`text-left text-lg font-bold pl-4 transition-all py-2 rounded-r-lg ${
-              isModalOpen
-                ? "text-black border-l-4 border-black bg-gray-50"
-                : "text-gray-400 hover:text-black hover:bg-gray-50 border-l-4 border-transparent"
-            }`}
-          >
-            Master IC
-          </button>
-
-          <div className="text-gray-300 text-lg cursor-not-allowed pl-4 uppercase text-[10px] font-black tracking-widest mt-4">
-            Others Soon
-          </div>
+        <nav className="flex flex-col gap-2">
+          {menu.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveModal(item.id)}
+              className={`text-left text-lg font-bold pl-4 transition-all py-2 rounded-r-lg ${
+                activeModal === item.id
+                  ? "text-black border-l-4 border-black bg-gray-50"
+                  : "text-gray-400 hover:text-black hover:bg-gray-50 border-l-4 border-transparent"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
         </nav>
 
-        {/* Info Footer Sidebar */}
         <div className="mt-auto">
           <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
             <p className="text-[10px] font-black uppercase text-gray-400 mb-1">
@@ -45,9 +51,7 @@ export default function ExportICPage() {
         </div>
       </aside>
 
-      {/* MAIN CONTENT AREA */}
-      {/* Kasih ml-64 supaya gak ketutup sidebar yang fixed */}
-      <main className="flex-1 ml-64 p-12 overflow-hidden flex flex-col min-h-screen justify-center items-center">
+      <main className="flex-1 ml-64 p-12 flex flex-col min-h-screen justify-center items-center">
         <div className="max-w-2xl text-center">
           <div className="mb-8 flex justify-center">
             <div className="w-24 h-24 bg-gray-100 rounded-[2.5rem] flex items-center justify-center rotate-12">
@@ -60,10 +64,11 @@ export default function ExportICPage() {
         </div>
       </main>
 
-      {/* EXPORT MODAL */}
-      <ExportICModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+      {/* MODALS */}
+      <ExportUniversalModal
+        type={activeModal}
+        isOpen={activeModal !== null}
+        onClose={() => setActiveModal(null)}
       />
     </div>
   );
