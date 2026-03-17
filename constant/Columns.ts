@@ -162,35 +162,55 @@ export const MASTER_COLUMNS_MAP: Record<string, string[]> = {
     "Berat Final",
   ],
   cm: [
-    "stt_no", // Pengganti "STT No"
-    "cargo_no", // Pengganti "Cargo No"
-    "courier_id",
-    "courier_type",
-    "created_at",
-    "dest",
-    "dropoff_created_at",
-    "dropoff_konsol_id",
-    "dropoff_location",
-    "dropoff_partner_code",
-    "dropoff_partner_name",
-    "dropoff_partner_type",
-    "full_name",
-    "manifest_validation", // Pengganti "Manifest Validation"
-    "month",
-    "origin",
-    "pickup_created_at",
-    "pickup_konsol_id",
-    "pickup_location",
-    "pickup_parter_code", // Sesuai typo di database 'parter'
-    "pickup_partner_name",
-    "pickup_partner_type",
-    "product_type", // Pengganti "Product"
-    "status_validation",
-    "sync_at",
-    "vehicle_plate",
-    "vehicle_type",
-    "vendor_id",
-    "vendor_name",
+    "stt_no", // STT No
+    "cargo_no", // Cargo No
+    "manifest_validation", // Manifest Validation
+    "courier_id", // Courier ID
+    "courier_type", // Courier Type
+    "created_at", // Created At
+    "origin", // Origin
+    "dest", // Dest.
+    "dropoff_created_at", // Dropoff Created At
+    "dropoff_konsol_id", // Dropoff Konsol ID
+    "dropoff_location", // Dropoff Location
+    "dropoff_partner_code", // Dropoff Partner Code
+    "dropoff_partner_name", // Dropoff Partner Name
+    "dropoff_partner_type", // Dropoff Partner Type
+    "full_name", // Full Name
+    "pickup_created_at", // Pickup Created At
+    "pickup_konsol_id", // Pickup Konsol ID
+    "pickup_location", // Pickup Location
+    "pickup_parter_code", // Pickup Parter Code
+    "pickup_partner_name", // Pickup Partner Name
+    "pickup_partner_type", // Pickup Partner Type
+    "status_validation", // Status Validation
+    "vehicle_plate", // Vehicle Plate
+    "vehicle_type", // Vehicle Type
+    "sync_at", // Sync At
+    "vendor_id", // Vendor ID
+    "vendor_name", // Vendor Name
+    "product", // Product (Mapping ke product_type)
+  ],
+  ms: [
+    "Cargo No",
+    "MAWB Pcs",
+    "MAWB Weight",
+    "STT No",
+    "STT Pcs",
+    "STT Gross Weight",
+    "Origin",
+    "Destination",
+    "Product",
+    "Flight/Truck/Train Date",
+    "Flight/Truck/Train No",
+    "ETD",
+    "ETA",
+    "Transit",
+    "Created Date AWB",
+    "Created Time AWB",
+    "CONS number",
+    "Type",
+    "T",
   ],
 };
 
@@ -199,5 +219,6 @@ export const LOCKED_MAP: Record<string, string[]> = {
   ls: ["STT No"],
   dt: ["STT No"],
   mt: ["Cargo No"],
-  cm: ["Cargo No"],
+  cm: ["cargo_no"],
+  ms: ["Cargo No"],
 };

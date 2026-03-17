@@ -14,6 +14,7 @@ export default function ExportICPage() {
     { id: "dt", label: "Master DT" },
     { id: "mt", label: "Master MT" },
     { id: "cm", label: "Master CM" },
+    { id: "ms", label: "Master MS" }, // Tambahan MS di sini
   ];
 
   return (

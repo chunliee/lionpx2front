@@ -3,8 +3,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import ExportMasterModal from "@/components/Modal";
 
+// --- KONFIGURASI DATA ---
 const dataContent: Record<string, string[]> = {
-  master: ["mn", "ic", "ls", "bc", "mr", "rf", "rt", "dt", "mt", "cm"],
+  master: ["mn", "ic", "ls", "bc", "mr", "rf", "rt", "dt", "mt", "cm", "ms"],
   tbs: [
     "kof",
     "kif",
@@ -44,7 +45,6 @@ interface ActiveJob {
   percentage: number;
 }
 
-// Interface untuk data statistik
 interface ItemStats {
   total_all: number;
   total_month: number;
@@ -57,10 +57,7 @@ export default function UploadPage() {
   const [exportType, setExportType] = useState("");
   const [activeJobs, setActiveJobs] = useState<ActiveJob[]>([]);
   const [isQueueOpen, setIsQueueOpen] = useState(true);
-
-  // State untuk menyimpan statistik baris
   const [stats, setStats] = useState<Record<string, ItemStats>>({});
-
   const [validFrom, setValidFrom] = useState("");
   const [validUntil, setValidUntil] = useState("");
 
@@ -70,7 +67,6 @@ export default function UploadPage() {
       : "";
   const isMonthEmpty = !selectedMonth || selectedMonth === "";
 
-  // FUNGSI FETCH STATISTIK
   const fetchStats = useCallback(async () => {
     if (!selectedMonth) return;
     try {
@@ -89,7 +85,7 @@ export default function UploadPage() {
   const removeJob = (id: string) => {
     setActiveJobs((prev) => prev.filter((j) => j.jobId !== id));
   };
-  // Refresh stats saat tab atau bulan berubah
+
   useEffect(() => {
     fetchStats();
   }, [fetchStats]);
@@ -101,7 +97,7 @@ export default function UploadPage() {
     }
   }, [selectedMonth]);
 
-  // Polling Jobs (Logic tetap sama)
+  // Polling logic
   useEffect(() => {
     const jobsToPoll = activeJobs.filter(
       (j) => !["done", "failed", "completed"].includes(j.status),
@@ -116,10 +112,7 @@ export default function UploadPage() {
             const res = await fetch(`${baseUrl}/jobs/${job.jobId}`);
             if (!res.ok) return job;
             const data = await res.json();
-
-            // Jika job baru saja selesai, refresh angka baris
             if (data.status === "completed") setTimeout(fetchStats, 2000);
-
             return {
               ...job,
               percentage: data.percentage || 0,
@@ -137,13 +130,10 @@ export default function UploadPage() {
     return () => clearInterval(interval);
   }, [activeJobs, baseUrl, fetchStats]);
 
+  // --- LOGIK UPLOAD DENGAN ERROR HANDLING ---
   const handleFileUpload = async (item: string) => {
     if (isMonthEmpty) {
       alert("Silakan pilih Periode (Bulan) terlebih dahulu.");
-      return;
-    }
-    if (item === "rf" && (!validFrom || !validUntil)) {
-      alert("Harap isi range tanggal Valid From & Until untuk Master RF.");
       return;
     }
 
@@ -162,6 +152,7 @@ export default function UploadPage() {
           formData.append("valid_from", validFrom);
           formData.append("valid_until", validUntil);
         }
+
         try {
           const response = await fetch(
             `${baseUrl}/upload/${activeTab}/${item}`,
@@ -170,8 +161,19 @@ export default function UploadPage() {
               body: formData,
             },
           );
+
           const result = await response.json();
-          if (response.ok && (result.job_id || result.job_ids)) {
+
+          if (!response.ok) {
+            // MENAMPILKAN ERROR DARI VALIDATOR BACKEND (Bad Request 400)
+            // result.error atau result.message tergantung mapping di controller Go lo
+            const errMsg =
+              result.error || result.message || "Gagal mengunggah file";
+            alert(`⚠️ Error Upload [${item.toUpperCase()}]:\n${errMsg}`);
+            continue; // Lanjut ke file berikutnya jika multiple upload
+          }
+
+          if (result.job_id || result.job_ids) {
             const finalJobId =
               result.job_id ||
               (Array.isArray(result.job_ids) ? result.job_ids[0] : null);
@@ -189,7 +191,8 @@ export default function UploadPage() {
             setIsQueueOpen(true);
           }
         } catch (error) {
-          console.error(`⚠️ Koneksi terputus`, error);
+          alert(`⚠️ Koneksi ke server terputus.`);
+          console.error(error);
         }
       }
     };
@@ -198,7 +201,12 @@ export default function UploadPage() {
 
   const handleDownloadTemplate = (item: string) => {
     const fileName = `temp_${item.toLowerCase()}.csv`;
-    const folder = activeTab === "master" ? "temp_master" : "temp_data";
+    let folder =
+      activeTab === "master"
+        ? "temp_master"
+        : activeTab === "tbs"
+          ? "temp_tbs"
+          : "temp_data";
     const filePath = `/${folder}/${fileName}`;
     const link = document.createElement("a");
     link.href = filePath;
@@ -299,7 +307,6 @@ export default function UploadPage() {
                     </div>
                   )}
                 </div>
-
                 <div className="flex items-center gap-4">
                   <button
                     onClick={() => handleDownloadTemplate(item)}
@@ -316,7 +323,7 @@ export default function UploadPage() {
                 </div>
               </div>
 
-              {/* STATS BAR (KOTAK KECIL DI BAWAH) */}
+              {/* STATS BAR */}
               <div className="flex border-t border-gray-200 bg-white/50 divide-x divide-gray-200">
                 <div className="flex-1 px-6 py-2 flex items-center justify-between">
                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
@@ -340,7 +347,7 @@ export default function UploadPage() {
         </div>
       </main>
 
-      {/* POPUP QUEUE (Tetap Sama) */}
+      {/* POPUP QUEUE */}
       {activeJobs.length > 0 && (
         <div className="fixed bottom-0 right-8 w-80 bg-white border border-gray-200 shadow-2xl rounded-t-lg overflow-hidden z-50">
           <div

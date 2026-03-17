@@ -3,7 +3,20 @@
 import React, { useState, useEffect } from "react";
 
 const engineContent: Record<string, string[]> = {
-  vlookup: ["kof", "sof", "pof", "kif", "sif"],
+  vlookup: [
+    "kof",
+    "sof",
+    "pof",
+    "kif",
+    "sif",
+    "def",
+    "fro",
+    "frd",
+    "tuc",
+    "stt",
+    "kpf",
+    "kdf",
+  ],
   summary: ["daily", "monthly", "yearly"],
   reconcile: ["finance", "operation"],
 };
