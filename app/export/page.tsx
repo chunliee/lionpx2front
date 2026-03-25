@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import ExportICModal from "@/components/Export_ic";
-import ExportUniversalModal from "@/components/Export_ic";
+
+import ExportUniversalModal from "@/components/Export";
 
 export default function ExportICPage() {
   // State untuk kontrol modal mana yang buka

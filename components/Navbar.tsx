@@ -6,7 +6,7 @@ const Navbar = () => {
       <div className="container mx-auto px-4">
         <div className="navbar-box flex items-center justify-between">
           <div className="logo">
-            <h1 className="text-3xl font-bold">ngodonf.</h1>
+            <h1 className="text-3xl font-bold italic">Lion Parcel</h1>
           </div>
           <ul className="menu flex items-center gap-12">
             <li className="">
