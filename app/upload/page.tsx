@@ -52,7 +52,7 @@ interface ItemStats {
 
 export default function UploadPage() {
   const [activeTab, setActiveTab] = useState("master");
-  const [selectedMonth, setSelectedMonth] = useState("");
+
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [exportType, setExportType] = useState("");
   const [activeJobs, setActiveJobs] = useState<ActiveJob[]>([]);
@@ -60,7 +60,19 @@ export default function UploadPage() {
   const [stats, setStats] = useState<Record<string, ItemStats>>({});
   const [validFrom, setValidFrom] = useState("");
   const [validUntil, setValidUntil] = useState("");
-
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("selected_month") || "";
+    }
+    return "";
+  });
+  useEffect(() => {
+    if (selectedMonth) {
+      localStorage.setItem("selected_month", selectedMonth);
+      setValidFrom(`${selectedMonth}-01`);
+      setValidUntil(`${selectedMonth}-28`);
+    }
+  }, [selectedMonth]);
   const baseUrl =
     typeof window !== "undefined"
       ? `http://${window.location.hostname}:8080`
@@ -98,7 +110,9 @@ export default function UploadPage() {
   }, [selectedMonth]);
 
   // Polling logic
+  // Polling logic
   useEffect(() => {
+    // Tambahkan "pending" dan "processing" agar tetap melakukan polling selama statusnya itu
     const jobsToPoll = activeJobs.filter(
       (j) => !["done", "failed", "completed"].includes(j.status),
     );
@@ -107,47 +121,89 @@ export default function UploadPage() {
     const interval = setInterval(async () => {
       const updatedJobs = await Promise.all(
         activeJobs.map(async (job) => {
+          // Jika sudah done/failed, jangan request lagi
           if (["done", "failed", "completed"].includes(job.status)) return job;
+
           try {
             const res = await fetch(`${baseUrl}/jobs/${job.jobId}`);
             if (!res.ok) return job;
             const data = await res.json();
-            if (data.status === "completed") setTimeout(fetchStats, 2000);
+
+            // Sync status: Pastikan frontend menganggap "done" sama dengan selesai
+            const isFinished =
+              data.status === "done" || data.status === "completed";
+
+            if (isFinished) {
+              setTimeout(fetchStats, 1000); // Refresh angka total di UI
+            }
+
             return {
               ...job,
+              // Gunakan total_rows dari backend jika progress mau akurat
               percentage: data.percentage || 0,
               progress: data.progress || 0,
-              total: data.total || 0,
-              status: data.status === "completed" ? "done" : data.status,
+              total: data.total_rows || 0,
+              status: isFinished ? "done" : data.status,
             };
           } catch (err) {
+            console.error("Polling error:", err);
             return job;
           }
         }),
       );
       setActiveJobs(updatedJobs);
     }, 1500);
+
     return () => clearInterval(interval);
   }, [activeJobs, baseUrl, fetchStats]);
 
   // --- LOGIK UPLOAD DENGAN ERROR HANDLING ---
   const handleFileUpload = async (item: string) => {
+    // 1. Validasi Periode (Bulan) - Wajib untuk semua
     if (isMonthEmpty) {
-      alert("Silakan pilih Periode (Bulan) terlebih dahulu.");
+      alert("⚠️ Silakan pilih Periode (Bulan) terlebih dahulu.");
       return;
+    }
+
+    // 2. Validasi Khusus RF (Tanggal Validitas)
+    if (item === "rf") {
+      if (!validFrom || !validUntil) {
+        alert(
+          "⚠️ Untuk Master RF, silakan isi tanggal 'From' dan 'Until' terlebih dahulu.",
+        );
+        return;
+      }
     }
 
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".csv, .xlsx";
+    // Master biasanya satu-satu, data/tbs bisa multiple
     input.multiple = activeTab !== "master";
 
     input.onchange = async (e: any) => {
       const files: File[] = Array.from(e.target.files);
+      if (files.length === 0) return;
+
+      // --- POPUP KONFIRMASI KHUSUS RF ---
+      if (item === "rf") {
+        const fileNames = files.map((f) => f.name).join(", ");
+        const confirmMsg =
+          `File: ${fileNames}\n` +
+          `Periode: ${selectedMonth}\n` +
+          `Valid From: ${validFrom}\n` +
+          `Valid Until: ${validUntil}\n\n`;
+
+        if (!window.confirm(confirmMsg)) return;
+      }
+
+      // --- LOOPING PROSES UPLOAD ---
       for (const file of files) {
         const formData = new FormData();
         formData.append("month", selectedMonth);
         formData.append("file", file);
+
+        // Append parameter tambahan jika RF
         if (item === "rf") {
           formData.append("valid_from", validFrom);
           formData.append("valid_until", validUntil);
@@ -165,22 +221,24 @@ export default function UploadPage() {
           const result = await response.json();
 
           if (!response.ok) {
-            // MENAMPILKAN ERROR DARI VALIDATOR BACKEND (Bad Request 400)
-            // result.error atau result.message tergantung mapping di controller Go lo
             const errMsg =
               result.error || result.message || "Gagal mengunggah file";
             alert(`⚠️ Error Upload [${item.toUpperCase()}]:\n${errMsg}`);
-            continue; // Lanjut ke file berikutnya jika multiple upload
+            continue;
           }
 
+          // Tambahkan ke Queue Jobs jika berhasil dapet Job ID
           if (result.job_id || result.job_ids) {
             const finalJobId =
               result.job_id ||
               (Array.isArray(result.job_ids) ? result.job_ids[0] : null);
+
             setActiveJobs((prev) => [
               {
                 jobId: finalJobId,
-                itemName: `${file.name.toUpperCase()} ${item === "rf" ? `(${validFrom})` : ""}`,
+                itemName: `${file.name.toUpperCase()} ${
+                  item === "rf" ? `[${validFrom}]` : ""
+                }`,
                 progress: 0,
                 status: "pending",
                 total: 0,
@@ -191,11 +249,12 @@ export default function UploadPage() {
             setIsQueueOpen(true);
           }
         } catch (error) {
-          alert(`⚠️ Koneksi ke server terputus.`);
+          alert(`⚠️ Koneksi ke server terputus saat upload ${file.name}`);
           console.error(error);
         }
       }
     };
+
     input.click();
   };
 
