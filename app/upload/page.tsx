@@ -36,6 +36,50 @@ const dataContent: Record<string, string[]> = {
   ],
 };
 
+const labelMapping: Record<string, Record<string, string>> = {
+  master: {
+    mn: "Master | ID Mitra",
+    ic: "Master | Detail STT (M.IC)",
+    ls: "Master | Last Status STT",
+    bc: "Master | Berat STT Corporate",
+    mr: "Master | Routing Transportation & Area",
+    rf: "Master | Rate Forward Area",
+    rt: "Master | Rate Trucking",
+    dt: "Master | Delivery Tiering Policy (DTPOL)",
+    cm: "Master | Detail Manifest Cargo",
+    mt: "Master | Manifest Cargo",
+    ms: "Master | Outgoing Shipment Report",
+  },
+  tbs: {
+    kof: "TBS | Konsolidator Outbound Fee",
+    kif: "TBS | Konsolidator Inbound Fee",
+    sof: "TBS | Subkonsolidator Outbound Fee",
+    sif: "TBS | Subkonsolidator Inbound Fee",
+    pof: "TBS | Pick Up Fee",
+    def: "TBS | Delivery Fee",
+    fro: "TBS | Forward Origin Fee",
+    frd: "TBS | Forward Destination Fee",
+    tuc: "TBS | Trucking Fee (TUC)",
+    stt: "TBS | Trucking Fee (STT)",
+    kpf: "TBS | KVP Pick Up Fee",
+    kdf: "TBS | KVP Delivery Fee",
+  },
+  data: {
+    kof: "Tagihan | Konsolidator Outbound Fee",
+    kif: "Tagihan | Konsolidator Inbound Fee",
+    sof: "Tagihan | Subkonsolidator Outbound Fee",
+    sif: "Tagihan | Subkonsolidator Inbound Fee",
+    pof: "Tagihan | Pick Up Fee",
+    def: "Tagihan | Delivery Fee",
+    fro: "Tagihan | Forward Origin Fee",
+    frd: "Tagihan | Forward Destination Fee",
+    tuc: "Tagihan | Trucking Fee (TUC)",
+    stt: "Tagihan | Trucking Fee (STT)",
+    kpf: "Tagihan | KVP Pick Up Fee",
+    kdf: "Tagihan | KVP Delivery Fee",
+  },
+};
+// Interface untuk State UI
 interface ActiveJob {
   jobId: string;
   itemName: string;
@@ -43,12 +87,37 @@ interface ActiveJob {
   status: string;
   total: number;
   percentage: number;
+  new_records: number; // Mapping dari new_records_count
+  updated_records: number; // Mapping dari updated_records_count
+  skipped_records: number; // Mapping dari skipped_records_count
+  type?: string;
+  category?: string;
+}
+
+// Interface sesuai JSON API yang kamu kasih
+interface ServerJobResponse {
+  _id: string; // dari /jobs/active
+  jobId?: string; // jaga-jaga jika /jobs/:id pakai key ini
+  file_name: string;
+  new_records: number; // Pakai nama asli dari JSON kamu
+  updated_records: number; // Pakai nama asli dari JSON kamu
+  skipped_records: number; // Pakai nama asli dari JSON kamu
+  percentage: number;
+  progress: number;
+  status: string;
+  total: number;
+  type: string;
+  category?: string;
 }
 
 interface ItemStats {
   total_all: number;
   total_month: number;
 }
+
+// Tambahkan ini di luar komponen atau di bagian interface
+
+const MathRound = (val: number) => Math.round(val);
 
 export default function UploadPage() {
   const [activeTab, setActiveTab] = useState("master");
@@ -66,6 +135,7 @@ export default function UploadPage() {
     }
     return "";
   });
+
   useEffect(() => {
     if (selectedMonth) {
       localStorage.setItem("selected_month", selectedMonth);
@@ -73,10 +143,12 @@ export default function UploadPage() {
       setValidUntil(`${selectedMonth}-28`);
     }
   }, [selectedMonth]);
+
   const baseUrl =
     typeof window !== "undefined"
       ? `http://${window.location.hostname}:8080`
       : "";
+
   const isMonthEmpty = !selectedMonth || selectedMonth === "";
 
   const fetchStats = useCallback(async () => {
@@ -102,17 +174,8 @@ export default function UploadPage() {
     fetchStats();
   }, [fetchStats]);
 
-  useEffect(() => {
-    if (selectedMonth) {
-      setValidFrom(`${selectedMonth}-01`);
-      setValidUntil(`${selectedMonth}-28`);
-    }
-  }, [selectedMonth]);
-
-  // Polling logic
   // Polling logic
   useEffect(() => {
-    // Tambahkan "pending" dan "processing" agar tetap melakukan polling selama statusnya itu
     const jobsToPoll = activeJobs.filter(
       (j) => !["done", "failed", "completed"].includes(j.status),
     );
@@ -121,7 +184,6 @@ export default function UploadPage() {
     const interval = setInterval(async () => {
       const updatedJobs = await Promise.all(
         activeJobs.map(async (job) => {
-          // Jika sudah done/failed, jangan request lagi
           if (["done", "failed", "completed"].includes(job.status)) return job;
 
           try {
@@ -129,24 +191,25 @@ export default function UploadPage() {
             if (!res.ok) return job;
             const data = await res.json();
 
-            // Sync status: Pastikan frontend menganggap "done" sama dengan selesai
             const isFinished =
               data.status === "done" || data.status === "completed";
 
-            if (isFinished) {
-              setTimeout(fetchStats, 1000); // Refresh angka total di UI
+            // REFRESH STATS: Jika baru saja selesai, update angka di dashboard
+            if (isFinished && job.status !== "done") {
+              fetchStats();
             }
 
             return {
               ...job,
-              // Gunakan total_rows dari backend jika progress mau akurat
               percentage: data.percentage || 0,
               progress: data.progress || 0,
-              total: data.total_rows || 0,
+              total: data.total || 0,
               status: isFinished ? "done" : data.status,
+              new_records: data.new_records_count || 0,
+              updated_records: data.updated_records_count || 0,
+              skipped_records: data.skipped_records_count || 0,
             };
           } catch (err) {
-            console.error("Polling error:", err);
             return job;
           }
         }),
@@ -157,15 +220,183 @@ export default function UploadPage() {
     return () => clearInterval(interval);
   }, [activeJobs, baseUrl, fetchStats]);
 
-  // --- LOGIK UPLOAD DENGAN ERROR HANDLING ---
+  // --- FIX: Logic Sinkronisasi Global agar data 'done' tidak hilang ---
+  // --- FUNGSI SINKRONISASI GLOBAL ---
+  // --- FUNGSI SINKRONISASI GLOBAL (/jobs/active) ---
+  const syncActiveJobs = useCallback(async () => {
+    if (!baseUrl) return;
+    try {
+      const res = await fetch(`${baseUrl}/jobs/active`);
+      if (!res.ok) return;
+
+      const serverData: any[] = await res.json();
+
+      if (serverData && Array.isArray(serverData)) {
+        setActiveJobs((prevJobs) => {
+          const newJobsState = [...prevJobs];
+
+          serverData.forEach((sJob) => {
+            const mappedJob: ActiveJob = {
+              // Gunakan _id atau jobId mana yang ada di JSON
+              jobId: sJob._id || sJob.jobId,
+              itemName:
+                sJob.file_name?.toUpperCase() || sJob.type?.toUpperCase(),
+              progress: sJob.progress,
+              total: sJob.total,
+              percentage: sJob.percentage,
+              status: sJob.status,
+              // Ambil field sesuai JSON baru kamu
+              new_records: sJob.new_records ?? 0,
+              updated_records: sJob.updated_records ?? 0,
+              skipped_records: sJob.skipped_records ?? 0,
+              type: sJob.type,
+              category: sJob.category,
+            };
+
+            const existingIdx = newJobsState.findIndex(
+              (j) => j.jobId === mappedJob.jobId,
+            );
+
+            if (existingIdx > -1) {
+              const currentStatus = newJobsState[existingIdx].status;
+              // Kunci state kalau sudah 'done' agar UI tidak kedip balik ke 0
+              if (!["done", "completed"].includes(currentStatus)) {
+                newJobsState[existingIdx] = mappedJob;
+              }
+            } else {
+              newJobsState.unshift(mappedJob);
+            }
+          });
+
+          return newJobsState;
+        });
+      }
+    } catch (err) {
+      console.error("Gagal sync global:", err);
+    }
+  }, [baseUrl]);
+
+  // --- POLLING LOGIC (/jobs/:id) ---
+  useEffect(() => {
+    const jobsToPoll = activeJobs.filter(
+      (j) => !["done", "failed", "completed", "uploading"].includes(j.status),
+    );
+
+    if (jobsToPoll.length === 0) return;
+
+    const interval = setInterval(async () => {
+      const updatedList = await Promise.all(
+        activeJobs.map(async (job) => {
+          if (
+            ["done", "failed", "completed", "uploading"].includes(job.status)
+          ) {
+            return job;
+          }
+
+          try {
+            const res = await fetch(`${baseUrl}/jobs/${job.jobId}`);
+            if (!res.ok) return job;
+
+            const data: ServerJobResponse = await res.json();
+            const isFinished =
+              data.status === "done" || data.status === "completed";
+
+            if (isFinished && job.status !== "done") {
+              fetchStats();
+            }
+
+            return {
+              ...job,
+              progress: data.progress,
+              total: data.total,
+              percentage: data.percentage,
+              status: isFinished ? "done" : data.status,
+              // FIX: Mapping ke field yang benar sesuai JSON kamu
+              new_records: data.new_records ?? job.new_records,
+              updated_records: data.updated_records ?? job.updated_records,
+              skipped_records: data.skipped_records ?? job.skipped_records,
+            };
+          } catch (err) {
+            return job;
+          }
+        }),
+      );
+      setActiveJobs(updatedList);
+    }, 1500);
+
+    return () => clearInterval(interval);
+  }, [activeJobs, baseUrl, fetchStats]);
+
+  // --- POLLING LOGIC ---
+  useEffect(() => {
+    // Cari job yang statusnya belum final
+    const jobsToPoll = activeJobs.filter(
+      (j) => !["done", "failed", "completed", "uploading"].includes(j.status),
+    );
+
+    if (jobsToPoll.length === 0) return;
+
+    const interval = setInterval(async () => {
+      const updatedList = await Promise.all(
+        activeJobs.map(async (job) => {
+          // Jika sudah selesai atau sedang proses upload awal, lewati polling
+          if (
+            ["done", "failed", "completed", "uploading"].includes(job.status)
+          ) {
+            return job;
+          }
+
+          try {
+            const res = await fetch(`${baseUrl}/jobs/${job.jobId}`);
+            if (!res.ok) return job;
+
+            const data: ServerJobResponse = await res.json();
+            const isFinished =
+              data.status === "done" || data.status === "completed";
+
+            if (isFinished && job.status !== "done") {
+              fetchStats(); // Update angka dashboard (MN, IC, dll)
+            }
+
+            return {
+              ...job,
+              progress: data.progress,
+              total: data.total,
+              percentage: data.percentage,
+              status: isFinished ? "done" : data.status,
+              new_records: data.new_records || 0,
+              updated_records: data.updated_records || 0,
+              skipped_records: data.skipped_records || 0,
+            };
+          } catch (err) {
+            return job;
+          }
+        }),
+      );
+      setActiveJobs(updatedList);
+    }, 1500);
+
+    return () => clearInterval(interval);
+  }, [activeJobs, baseUrl, fetchStats]);
+  // Trigger sinkronisasi saat pertama kali load dan interval rutin
+  useEffect(() => {
+    // Langsung cek pas pertama kali buka
+    syncActiveJobs();
+
+    // Cek berkala setiap 3 detik untuk sinkronisasi global
+    const globalSyncInterval = setInterval(() => {
+      syncActiveJobs();
+    }, 3000);
+
+    return () => clearInterval(globalSyncInterval);
+  }, [syncActiveJobs]);
+
   const handleFileUpload = async (item: string) => {
-    // 1. Validasi Periode (Bulan) - Wajib untuk semua
     if (isMonthEmpty) {
       alert("⚠️ Silakan pilih Periode (Bulan) terlebih dahulu.");
       return;
     }
 
-    // 2. Validasi Khusus RF (Tanggal Validitas)
     if (item === "rf") {
       if (!validFrom || !validUntil) {
         alert(
@@ -178,32 +409,39 @@ export default function UploadPage() {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".csv, .xlsx";
-    // Master biasanya satu-satu, data/tbs bisa multiple
     input.multiple = activeTab !== "master";
 
     input.onchange = async (e: any) => {
       const files: File[] = Array.from(e.target.files);
       if (files.length === 0) return;
 
-      // --- POPUP KONFIRMASI KHUSUS RF ---
       if (item === "rf") {
         const fileNames = files.map((f) => f.name).join(", ");
-        const confirmMsg =
-          `File: ${fileNames}\n` +
-          `Periode: ${selectedMonth}\n` +
-          `Valid From: ${validFrom}\n` +
-          `Valid Until: ${validUntil}\n\n`;
-
+        const confirmMsg = `File: ${fileNames}\nPeriode: ${selectedMonth}\nValid From: ${validFrom}\nValid Until: ${validUntil}\n\n`;
         if (!window.confirm(confirmMsg)) return;
       }
 
-      // --- LOOPING PROSES UPLOAD ---
       for (const file of files) {
+        // 1. Generate ID Sementara untuk UI (karena ID dari backend belum ada)
+        const tempJobId = `temp-${Date.now()}-${file.name}`;
+
+        // 2. OPTIMISTIC UPDATE: Langsung masukkan ke Queue agar label "Uploading" muncul
+        setActiveJobs((prev) => [
+          {
+            jobId: tempJobId,
+            itemName: `${file.name.toUpperCase()} ${item === "rf" ? `[${validFrom}]` : ""}`,
+            progress: 0,
+            status: "uploading", // Beri status khusus agar UI tahu ini sedang proses stream ke server
+            total: 0,
+            percentage: 0,
+          },
+          ...prev,
+        ]);
+        setIsQueueOpen(true);
+
         const formData = new FormData();
         formData.append("month", selectedMonth);
         formData.append("file", file);
-
-        // Append parameter tambahan jika RF
         if (item === "rf") {
           formData.append("valid_from", validFrom);
           formData.append("valid_until", validUntil);
@@ -221,40 +459,34 @@ export default function UploadPage() {
           const result = await response.json();
 
           if (!response.ok) {
-            const errMsg =
-              result.error || result.message || "Gagal mengunggah file";
-            alert(`⚠️ Error Upload [${item.toUpperCase()}]:\n${errMsg}`);
+            alert(
+              `⚠️ Error Upload [${item.toUpperCase()}]:\n${result.error || "Gagal mengunggah"}`,
+            );
+            // Hapus job sementara jika gagal upload
+            removeJob(tempJobId);
             continue;
           }
 
-          // Tambahkan ke Queue Jobs jika berhasil dapet Job ID
+          // 3. SYNC ID: Ganti tempJobId dengan jobId asli dari Backend agar polling berjalan
           if (result.job_id || result.job_ids) {
             const finalJobId =
               result.job_id ||
               (Array.isArray(result.job_ids) ? result.job_ids[0] : null);
 
-            setActiveJobs((prev) => [
-              {
-                jobId: finalJobId,
-                itemName: `${file.name.toUpperCase()} ${
-                  item === "rf" ? `[${validFrom}]` : ""
-                }`,
-                progress: 0,
-                status: "pending",
-                total: 0,
-                percentage: 0,
-              },
-              ...prev,
-            ]);
-            setIsQueueOpen(true);
+            setActiveJobs((prev) =>
+              prev.map((j) =>
+                j.jobId === tempJobId
+                  ? { ...j, jobId: finalJobId, status: "pending" }
+                  : j,
+              ),
+            );
           }
         } catch (error) {
           alert(`⚠️ Koneksi ke server terputus saat upload ${file.name}`);
-          console.error(error);
+          removeJob(tempJobId);
         }
       }
     };
-
     input.click();
   };
 
@@ -277,7 +509,6 @@ export default function UploadPage() {
 
   return (
     <div className="flex min-h-screen bg-white font-poppins text-black relative overflow-hidden">
-      {/* SIDEBAR */}
       <aside className="w-64 border-r border-gray-100 p-8 flex flex-col">
         <h2 className="font-bold text-xl mb-10 tracking-tight">Collections</h2>
         <nav className="flex flex-col gap-6">
@@ -297,7 +528,6 @@ export default function UploadPage() {
         </nav>
       </aside>
 
-      {/* MAIN CONTENT */}
       <main className="flex-1 p-12">
         <header className="flex justify-between items-end mb-12 border-b border-gray-100 pb-6">
           <div>
@@ -333,12 +563,24 @@ export default function UploadPage() {
             >
               <div className="flex justify-between items-center p-6">
                 <div className="flex flex-col">
-                  <span
-                    onClick={() => handleFileUpload(item)}
-                    className="text-2xl font-bold uppercase tracking-tighter cursor-pointer"
-                  >
-                    {item}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span
+                      onClick={() => handleFileUpload(item)}
+                      className="text-lg font-bold uppercase tracking-tight cursor-pointer"
+                    >
+                      {/* Logic: Ambil dari [activeTab][item], kalau ga ada balik ke [item] saja */}
+                      {labelMapping[activeTab]?.[item] || item}
+                    </span>
+                    {activeJobs.some(
+                      (j) =>
+                        j.itemName.includes(item.toUpperCase()) &&
+                        j.status !== "done",
+                    ) && (
+                      <span className="bg-blue-600 px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest text-white animate-pulse">
+                        Uploading...
+                      </span>
+                    )}
+                  </div>
                   {item === "rf" && (
                     <div className="flex gap-4 mt-3 p-3 bg-white/50 rounded-lg border border-dashed border-gray-300">
                       <div className="flex flex-col">
@@ -382,7 +624,6 @@ export default function UploadPage() {
                 </div>
               </div>
 
-              {/* STATS BAR */}
               <div className="flex border-t border-gray-200 bg-white/50 divide-x divide-gray-200">
                 <div className="flex-1 px-6 py-2 flex items-center justify-between">
                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
@@ -406,7 +647,6 @@ export default function UploadPage() {
         </div>
       </main>
 
-      {/* POPUP QUEUE */}
       {activeJobs.length > 0 && (
         <div className="fixed bottom-0 right-8 w-80 bg-white border border-gray-200 shadow-2xl rounded-t-lg overflow-hidden z-50">
           <div
@@ -451,12 +691,47 @@ export default function UploadPage() {
                       </button>
                     </div>
                   </div>
-                  <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full transition-all duration-300 ${job.status === "done" ? "bg-green-500" : job.status === "failed" ? "bg-red-500" : "bg-blue-600"}`}
-                      style={{ width: `${job.percentage}%` }}
-                    ></div>
-                  </div>
+
+                  {job.status === "done" ? (
+                    <div className="mt-2 flex gap-1 animate-in slide-in-from-left duration-500">
+                      <div className="flex-1 bg-gray-100 rounded-xl p-2 flex flex-col items-center justify-center border border-gray-200">
+                        <span className="text-[8px] font-bold text-gray-400 uppercase leading-none">
+                          Total
+                        </span>
+                        <span className="text-[10px] font-black">
+                          {job.total}
+                        </span>
+                      </div>
+                      <div className="flex-1 bg-gray-100 rounded-xl p-2 flex flex-col items-center justify-center border border-gray-200">
+                        <span className="text-[8px] font-bold text-gray-400 uppercase leading-none">
+                          New
+                        </span>
+                        <span className="text-[10px] font-black text-green-600">
+                          {job.new_records}
+                        </span>
+                      </div>
+                      <div className="flex-1 bg-gray-100 rounded-xl p-2 flex flex-col items-center justify-center border border-gray-200">
+                        <span className="text-[8px] font-bold text-gray-400 uppercase leading-none">
+                          {/* Jika ada nilai di updated_records, pakai label Upd, selain itu Skp */}
+                          {job.updated_records && job.updated_records > 0
+                            ? "Updated"
+                            : "Skipped"}
+                        </span>
+                        <span className="text-[10px] font-black text-blue-600">
+                          {job.updated_records && job.updated_records > 0
+                            ? job.updated_records
+                            : job.skipped_records || 0}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden mt-2">
+                      <div
+                        className={`h-full transition-all duration-300 ${job.status === "failed" ? "bg-red-500" : "bg-blue-600"}`}
+                        style={{ width: `${job.percentage}%` }}
+                      ></div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

@@ -17,7 +17,6 @@ export default function ExportUniversalModal({
   const currentType = type || "ic";
 
   // LOGIC TAMPILAN FILTER BERDASARKAN TIPE MASTER
-  // LS & DT tidak punya Origin. LS tidak punya Destination.
   const hasOrigin = ["ic", "mt", "cm", "ms"].includes(currentType);
   const hasDestination = ["ic", "mt", "cm", "ms", "dt"].includes(currentType);
   const hasCargo = ["ic", "mt", "ms"].includes(currentType);
@@ -41,6 +40,8 @@ export default function ExportUniversalModal({
     destinationList: "",
     cargoList: "",
     sttList: "",
+    clientCodeList: "",
+    customerCodeList: "",
     date: "",
   });
 
@@ -56,6 +57,8 @@ export default function ExportUniversalModal({
         destinationList: "",
         cargoList: "",
         sttList: "",
+        clientCodeList: "",
+        customerCodeList: "",
         date: "",
       });
     }
@@ -81,6 +84,17 @@ export default function ExportUniversalModal({
     if (filters.startDate) params.append("start_date", filters.startDate);
     if (filters.endDate) params.append("end_date", filters.endDate);
     if (filters.sttList) params.append("stt_list", cleanInput(filters.sttList));
+
+    // Append Filter khusus IC
+    if (currentType === "ic") {
+      if (filters.clientCodeList)
+        params.append("client_code_list", cleanInput(filters.clientCodeList));
+      if (filters.customerCodeList)
+        params.append(
+          "customer_code_list",
+          cleanInput(filters.customerCodeList),
+        );
+    }
 
     // Append Filter Spesifik jika tipe mendukung
     if (hasCargo && filters.cargoList)
@@ -130,7 +144,6 @@ export default function ExportUniversalModal({
             <h2 className="text-2xl font-black uppercase tracking-tighter">
               {currentType} Data
             </h2>
-            <p className="text-[10px] text-gray-400 font-bold uppercase italic"></p>
           </div>
           <button
             onClick={onClose}
@@ -170,14 +183,48 @@ export default function ExportUniversalModal({
               />
             </div>
 
-            {/* ORIGIN LIST (Conditional) */}
+            {/* CONDITIONAL CLIENT & CUSTOMER CODE FOR IC ONLY */}
+            {currentType === "ic" && (
+              <>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase text-gray-400">
+                    Client Code
+                  </label>
+                  <textarea
+                    placeholder=""
+                    value={filters.clientCodeList}
+                    onChange={(e) =>
+                      setFilters({ ...filters, clientCodeList: e.target.value })
+                    }
+                    className="w-full h-16 bg-gray-100 p-3 rounded-lg text-[10px] font-mono outline-none focus:ring-1 focus:ring-black resize-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase text-gray-400">
+                    Customer Code
+                  </label>
+                  <textarea
+                    placeholder=""
+                    value={filters.customerCodeList}
+                    onChange={(e) =>
+                      setFilters({
+                        ...filters,
+                        customerCodeList: e.target.value,
+                      })
+                    }
+                    className="w-full h-16 bg-gray-100 p-3 rounded-lg text-[10px] font-mono outline-none focus:ring-1 focus:ring-black resize-none"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* ORIGIN LIST */}
             {hasOrigin && (
               <div className="space-y-1">
                 <label className="text-[9px] font-black uppercase text-gray-400">
                   Origin
                 </label>
                 <textarea
-                  placeholder=""
                   value={filters.originList}
                   onChange={(e) =>
                     setFilters({ ...filters, originList: e.target.value })
@@ -187,14 +234,13 @@ export default function ExportUniversalModal({
               </div>
             )}
 
-            {/* DESTINATION LIST (Conditional) */}
+            {/* DESTINATION LIST */}
             {hasDestination && (
               <div className="space-y-1">
                 <label className="text-[9px] font-black uppercase text-gray-400">
                   Destination
                 </label>
                 <textarea
-                  placeholder=""
                   value={filters.destinationList}
                   onChange={(e) =>
                     setFilters({ ...filters, destinationList: e.target.value })
@@ -210,7 +256,6 @@ export default function ExportUniversalModal({
                 STT
               </label>
               <textarea
-                placeholder=""
                 value={filters.sttList}
                 onChange={(e) =>
                   setFilters({ ...filters, sttList: e.target.value })
@@ -219,14 +264,13 @@ export default function ExportUniversalModal({
               />
             </div>
 
-            {/* CARGO LIST (Conditional) */}
+            {/* CARGO LIST */}
             {hasCargo && (
               <div className="space-y-1">
                 <label className="text-[9px] font-black uppercase text-gray-400">
                   Cargo No
                 </label>
                 <textarea
-                  placeholder=""
                   value={filters.cargoList}
                   onChange={(e) =>
                     setFilters({ ...filters, cargoList: e.target.value })

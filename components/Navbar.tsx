@@ -16,11 +16,12 @@ const Navbar = () => {
               <Link href="/upload">Upload</Link>
             </li>
             <li className="">
-              <Link href="/export">Export</Link>
-            </li>
-            <li className="">
               <Link href="/engine">Engine</Link>
             </li>
+            <li className="">
+              <Link href="/export">Export</Link>
+            </li>
+
             <li className="">
               <Link href="/logs">Logs</Link>
             </li>

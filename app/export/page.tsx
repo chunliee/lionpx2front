@@ -9,12 +9,13 @@ export default function ExportICPage() {
   const [activeModal, setActiveModal] = useState<string | null>(null);
 
   const menu = [
-    { id: "ic", label: "Master IC" },
-    { id: "ls", label: "Master LS" },
-    { id: "dt", label: "Master DT" },
-    { id: "mt", label: "Master MT" },
-    { id: "cm", label: "Master CM" },
-    { id: "ms", label: "Master MS" }, // Tambahan MS di sini
+    { id: "ic", label: "Detail STT (M.IC)" },
+    { id: "ls", label: "Last Status STT" },
+    { id: "dt", label: "Delivery Tiering Policy (DTPOL)" },
+    { id: "mt", label: "Manifest Cargo" },
+    { id: "cm", label: "Detail Manifest Cargo" },
+    { id: "ms", label: "Outgoing Shipment Report" },
+    { id: "mn", label: "ID Mitra" },
   ];
 
   return (

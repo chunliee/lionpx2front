@@ -2,28 +2,28 @@
 
 import React, { useState, useEffect } from "react";
 
-const engineContent: Record<string, string[]> = {
-  vlookup: [
-    "kof",
-    "sof",
-    "pof",
-    "kif",
-    "sif",
-    "def",
-    "fro",
-    "frd",
-    "tuc",
-    "stt",
-    "kpf",
-    "kdf",
-  ],
-  summary: ["daily", "monthly", "yearly"],
-  reconcile: ["finance", "operation"],
+// --- KONFIGURASI DATA ---
+const labelMapping: Record<string, string> = {
+  kof: "Engine | Konsolidator Outbound Fee",
+  kif: "Engine | Konsolidator Inbound Fee",
+  sof: "Engine | Subkonsolidator Outbound Fee",
+  sif: "Engine | Subkonsolidator Inbound Fee",
+  pof: "Engine | Pick Up Fee",
+  def: "Engine | Delivery Fee",
+  fro: "Engine | Forward Origin Fee",
+  frd: "Engine | Forward Destination Fee",
+  tuc: "Engine | Trucking Fee (TUC)",
+  stt: "Engine | Trucking Fee (STT)",
+  kpf: "Engine | KVP Pick Up Fee",
+  kdf: "Engine | KVP Delivery Fee",
 };
+
+const vlookupItems = Object.keys(labelMapping);
 
 interface ActiveJob {
   jobId: string;
   itemName: string;
+  displayLabel: string;
   progress: number;
   status: string;
   total: number;
@@ -32,81 +32,78 @@ interface ActiveJob {
 }
 
 export default function ReportPage() {
-  const [activeTab, setActiveTab] = useState("vlookup");
   const [selectedMonth, setSelectedMonth] = useState("2026-12");
   const [activeJobs, setActiveJobs] = useState<ActiveJob[]>([]);
   const [isQueueOpen, setIsQueueOpen] = useState(true);
 
-  const baseUrl = `http://${window.location.hostname}:8080`;
+  const [baseUrl, setBaseUrl] = useState("");
+  useEffect(() => {
+    setBaseUrl(`http://${window.location.hostname}:8080`);
+  }, []);
 
   // Polling Manager
   useEffect(() => {
     const jobsToPoll = activeJobs.filter(
       (j) => j.status !== "done" && j.status !== "failed",
     );
-    if (jobsToPoll.length === 0) return;
+    if (jobsToPoll.length === 0 || !baseUrl) return;
 
     const interval = setInterval(async () => {
-      const updatedJobs = await Promise.all(
-        activeJobs.map(async (job) => {
-          if (job.status === "done" || job.status === "failed") return job;
+      try {
+        const updatedJobs = await Promise.all(
+          activeJobs.map(async (job) => {
+            if (job.status === "done" || job.status === "failed") return job;
 
-          try {
             const res = await fetch(`${baseUrl}/jobs/${job.jobId}`);
             if (!res.ok) return job;
             const data = await res.json();
 
+            // Sesuai JSON backend: status "done", path di "file_path"
             return {
               ...job,
-              percentage: data.percentage || 0,
+              percentage: data.percentage || (data.status === "done" ? 100 : 0),
               progress: data.progress || 0,
               total: data.total_rows || data.total || 0,
-              status: data.status === "completed" ? "done" : data.status,
-              filePaths: data.file_path,
+              status: data.status,
+              filePaths: data.file_path || "",
             };
-          } catch (err) {
-            return job;
-          }
-        }),
-      );
-
-      setActiveJobs(updatedJobs);
+          }),
+        );
+        setActiveJobs(updatedJobs);
+      } catch (err) {
+        console.error("Polling error:", err);
+      }
     }, 1500);
 
     return () => clearInterval(interval);
   }, [activeJobs, baseUrl]);
 
-  // FUNGSI BARU: Supaya file ada format .csv dan nama yang benar
   const handleDownloadPart = async (
     jobId: string,
     partIdx: number,
-    itemName: string,
+    itemKey: string,
+    displayLabel: string,
   ) => {
     try {
       const response = await fetch(
-        `${baseUrl}/engine/kof/download?job_id=${jobId}&part=${partIdx}`,
+        `${baseUrl}/engine/${itemKey.toLowerCase()}/download?job_id=${jobId}&part=${partIdx}`,
       );
       if (!response.ok) throw new Error("Download gagal");
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
+      const safeName = displayLabel.replace(/[\s|]+/g, "_");
 
-      // Bersihkan nama file dari spasi
-      const safeItemName = itemName.replace(/\s+/g, "_");
-      const fileName = `${safeItemName}_${selectedMonth}_PART${partIdx + 1}.csv`;
-
+      // Nama file dinamis: Part 1, Part 2, dst.
       a.href = url;
-      a.download = fileName;
+      a.download = `${safeName}_${selectedMonth}_PART${partIdx + 1}.csv`;
       document.body.appendChild(a);
       a.click();
-
-      // Cleanup
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
     } catch (err) {
       alert("⚠️ Gagal mendownload file");
-      console.error(err);
     }
   };
 
@@ -119,60 +116,43 @@ export default function ReportPage() {
         method: "POST",
         body: formData,
       });
-
       const result = await response.json();
 
       if (response.ok && result.job_id) {
-        const newJob: ActiveJob = {
-          jobId: result.job_id,
-          itemName: `${item.toUpperCase()}`,
-          progress: 0,
-          status: "pending",
-          total: 0,
-          percentage: 0,
-        };
-
-        setActiveJobs((prev) => [newJob, ...prev]);
+        setActiveJobs((prev) => [
+          {
+            jobId: result.job_id,
+            itemName: item,
+            displayLabel: labelMapping[item],
+            progress: 0,
+            status: "pending",
+            total: 0,
+            percentage: 0,
+          },
+          ...prev,
+        ]);
         setIsQueueOpen(true);
-      } else {
-        alert(`Gagal: ${result.error || "Server Error"}`);
       }
     } catch (error) {
-      alert("⚠️ Koneksi ke backend gagal!");
+      alert("⚠️ Backend tidak merespon!");
     }
+  };
+
+  const removeJob = (id: string) => {
+    setActiveJobs((prev) => prev.filter((j) => j.jobId !== id));
   };
 
   return (
     <div className="flex min-h-screen bg-white font-poppins text-black relative overflow-hidden">
-      {/* SIDEBAR */}
-      <aside className="w-64 border-r border-gray-100 p-8 flex flex-col">
-        <h2 className="font-bold text-xl mb-10 tracking-tight">Engines</h2>
-        <nav className="flex flex-col gap-6">
-          {Object.keys(engineContent).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`text-left text-lg capitalize transition-all ${
-                activeTab === tab
-                  ? "font-bold text-black"
-                  : "text-gray-400 hover:text-gray-600 rounded-2xl py-6 px-3 bg-gray-100 "
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </nav>
-      </aside>
-
       {/* MAIN CONTENT */}
-      <main className="flex-1 p-12">
+      <main className="flex-1 p-12 max-w-4xl mx-auto w-full">
         <header className="flex justify-between items-end mb-12 border-b border-gray-100 pb-6">
           <div>
-            <h1 className="text-3xl font-bold capitalize">
-              {activeTab} Process
+            <h1 className="text-3xl font-bold uppercase tracking-tight">
+              Vlookup Engine
             </h1>
-            <p className="text-xs text-gray-400 mt-1 uppercase">
-              Automated Data Processing
+            <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-[0.2em] font-semibold">
+              Data Processing Terminal
             </p>
           </div>
           <div className="flex flex-col items-end gap-1">
@@ -183,46 +163,81 @@ export default function ReportPage() {
               type="month"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
-              className="border border-black px-4 py-1.5 text-sm font-bold outline-none rounded-lg"
+              className="border-2 border-black px-4 py-1.5 text-sm font-bold outline-none rounded-xl"
             />
           </div>
         </header>
 
-        <div className="max-w-3xl">
-          {engineContent[activeTab].map((item) => (
+        <div className="space-y-4">
+          {vlookupItems.map((item) => (
             <div
               key={item}
-              onClick={() => handleRunEngine(item)}
-              className="group flex justify-between items-center border-black py-6 px-6 hover:bg-blue-50 transition-all cursor-pointer mt-2 bg-gray-100 rounded-2xl"
+              className="group flex flex-col bg-gray-100 rounded-2xl overflow-hidden border border-transparent hover:border-gray-200 transition-all shadow-sm"
             >
-              <div className="flex flex-col">
-                <span className="text-2xl font-bold uppercase tracking-tighter">
-                  {item} Engine
-                </span>
-                <span className="text-[10px] text-gray-400 font-medium italic">
-                  Ready to process {selectedMonth}
-                </span>
+              <div className="flex justify-between items-center p-6">
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-3">
+                    <span
+                      onClick={() => handleRunEngine(item)}
+                      className="text-lg font-bold uppercase tracking-tight cursor-pointer hover:text-blue-600 transition-colors"
+                    >
+                      {labelMapping[item]}
+                    </span>
+                    {activeJobs.some(
+                      (j) => j.itemName === item && j.status !== "done",
+                    ) && (
+                      <span className="bg-blue-600 px-3 py-1 rounded-xl text-[9px] font-black uppercase text-white animate-pulse">
+                        Running...
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-gray-400 font-medium mt-1">
+                    Process VLOOKUP for {labelMapping[item]}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div
+                    onClick={() => handleRunEngine(item)}
+                    className="flex items-center justify-center w-10 h-10 bg-black text-white rounded-full opacity-0 group-hover:opacity-100 transition-all cursor-pointer transform translate-x-2 group-hover:translate-x-0"
+                  >
+                    <i className="ri-play-fill text-xl"></i>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                <span className="text-[10px] font-bold uppercase text-blue-600">
-                  Run Process
-                </span>
-                <i className="ri-play-fill text-2xl text-blue-600"></i>
-              </div>
+              {/* STATS BAR (Sama UI dengan Upload Master)
+              <div className="flex border-t border-gray-200 bg-white/50 divide-x divide-gray-200">
+                <div className="flex-1 px-6 py-2.5 flex items-center justify-between">
+                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
+                    System Status
+                  </span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-green-600">
+                    Ready
+                  </span>
+                </div>
+                <div className="flex-1 px-6 py-2.5 flex items-center justify-between bg-black/5">
+                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
+                    Active Period
+                  </span>
+                  <span className="text-[10px] font-black text-blue-600 uppercase">
+                    {selectedMonth}
+                  </span>
+                </div>
+              </div> */}
             </div>
           ))}
         </div>
       </main>
 
-      {/* POPUP QUEUE */}
+      {/* QUEUE POPUP */}
       {activeJobs.length > 0 && (
-        <div className="fixed bottom-0 right-8 w-80 bg-white border border-gray-200 shadow-2xl rounded-t-xl overflow-hidden transition-all duration-300 z-50">
+        <div className="fixed bottom-0 right-8 w-80 bg-white border border-gray-200 shadow-2xl rounded-t-2xl overflow-hidden z-50">
           <div
             className="bg-gray-900 text-white p-4 flex justify-between items-center cursor-pointer"
             onClick={() => setIsQueueOpen(!isQueueOpen)}
           >
-            <span className="text-xs font-bold uppercase tracking-wider">
-              {activeJobs.length} Processing Task
+            <span className="text-[10px] font-bold uppercase tracking-widest">
+              {activeJobs.length} Processing Jobs
             </span>
             <i
               className={
@@ -232,60 +247,66 @@ export default function ReportPage() {
           </div>
 
           {isQueueOpen && (
-            <div className="max-h-['30rem'] overflow-y-auto p-3 space-y-3 bg-white">
+            <div className="max-h-96 overflow-y-auto p-4 space-y-3 bg-white">
               {activeJobs.map((job) => (
                 <div
                   key={job.jobId}
                   className="p-4 bg-gray-50 rounded-xl border border-gray-100"
                 >
                   <div className="flex justify-between items-start mb-2">
-                    <span className="text-[10px] font-bold uppercase truncate w-44 text-gray-700">
-                      {job.itemName}
+                    <span className="text-[10px] font-bold uppercase truncate w-36 text-gray-700">
+                      {job.displayLabel}
                     </span>
-                    {job.status === "done" ? (
-                      <i className="ri-checkbox-circle-fill text-green-500 text-lg"></i>
-                    ) : (
-                      <span className="text-[10px] font-mono text-blue-600 font-bold">
-                        {job.percentage.toFixed(0)}%
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Progress Bar */}
-                  <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden mb-3">
-                    <div
-                      className={`h-full transition-all duration-500 ${job.status === "done" ? "bg-green-500" : "bg-blue-600"}`}
-                      style={{ width: `${job.percentage}%` }}
-                    ></div>
-                  </div>
-
-                  {/* Action Section */}
-                  <div className="flex flex-col gap-2">
-                    <div className="flex justify-between text-[9px] text-gray-400 font-bold uppercase">
-                      <span>{job.status}</span>
-                      {job.status !== "done" && (
-                        <span>{job.progress.toLocaleString()} rows</span>
+                    <div className="flex items-center gap-2">
+                      {job.status === "done" ? (
+                        <i className="ri-checkbox-circle-fill text-green-500 text-xl"></i>
+                      ) : (
+                        <span className="text-[10px] font-mono text-blue-600 font-bold">
+                          {Math.round(job.percentage)}%
+                        </span>
                       )}
+                      <button
+                        onClick={() => removeJob(job.jobId)}
+                        className="hover:bg-gray-200 rounded-full p-1 transition-colors"
+                      >
+                        <i className="ri-close-line text-gray-400"></i>
+                      </button>
                     </div>
+                  </div>
 
-                    {/* Tombol Download (Ganti dari <a> ke button untuk handle blob) */}
-                    {job.status === "done" && job.filePaths && (
-                      <div className="grid grid-cols-1 gap-1.5 mt-2">
-                        {job.filePaths.split("|").map((path, idx) => (
+                  {job.status === "done" ? (
+                    <div className="mt-3 flex flex-col gap-2 animate-in slide-in-from-bottom-2 duration-300">
+                      {/* Logika Pecah Part Download Berdasarkan Separator '|' */}
+                      {(job.filePaths || "Result")
+                        .split("|")
+                        .map((_, idx, all) => (
                           <button
                             key={idx}
                             onClick={() =>
-                              handleDownloadPart(job.jobId, idx, job.itemName)
+                              handleDownloadPart(
+                                job.jobId,
+                                idx,
+                                job.itemName,
+                                job.displayLabel,
+                              )
                             }
-                            className="flex items-center justify-center gap-2 bg-black text-white py-2 rounded-lg text-[10px] font-bold uppercase hover:bg-gray-800 transition-all"
+                            className="w-full bg-black text-white py-2.5 rounded-xl text-[10px] font-bold uppercase flex items-center justify-center gap-2 hover:bg-gray-800 active:scale-95 transition-all shadow-md"
                           >
-                            <i className="ri-download-2-line"></i> Download Part{" "}
-                            {idx + 1}
+                            <i className="ri-download-cloud-2-line text-xs"></i>
+                            {all.length > 1
+                              ? `Download Part ${idx + 1}`
+                              : "Download Result"}
                           </button>
                         ))}
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden mt-2">
+                      <div
+                        className="h-full bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.4)] transition-all duration-500"
+                        style={{ width: `${job.percentage}%` }}
+                      ></div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
