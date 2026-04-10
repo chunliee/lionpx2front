@@ -7,15 +7,17 @@ interface ExportUniversalModalProps {
   type: string | null;
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (jobId: string, label: string) => void; // Tambahkan ini
+  onSuccess: (jobId: string, label: string) => void;
 }
 
-export default function ExportUniversalModal({
+export default function ExportUniversalModalv2({
   type,
   isOpen,
   onClose,
+  onSuccess,
 }: ExportUniversalModalProps) {
   const currentType = type || "ic";
+  const [isGenerating, setIsGenerating] = useState(false);
 
   // LOGIC TAMPILAN FILTER BERDASARKAN TIPE MASTER
   const hasOrigin = ["ic", "mt", "cm", "ms", "rt"].includes(currentType);
@@ -109,32 +111,37 @@ export default function ExportUniversalModal({
 
   if (!isOpen) return null;
 
-  const handleDownload = () => {
+  const handleGenerateJob = async () => {
     const baseUrl = `http://${window.location.hostname}:8080`;
 
+    // Helper Pembersihan Data
     const cleanInput = (raw: string) =>
       raw
         .split(/[\n, \t\r]+/)
         .map((s) => s.trim())
         .filter((s) => s && s.length > 0)
         .join(",");
+
     const cleanInput2 = (raw: string) =>
       raw
-        .split(/\n+/) // Pecah berdasarkan baris baru
+        .split(/\n+/)
         .map((s) => s.trim())
         .filter((s) => s.length > 0)
-        .join("|"); // Gunakan pipe sebagai pemisah antar baris
+        .join("|");
+
     const params = new URLSearchParams({
       columns: selected.join("|"),
     });
 
+    // --- LOGIC FILTER (Lengkap sesuai kodemu) ---
+
     if (isBC) {
-      if (filters.sttList) params.append("stt_id", cleanInput(filters.sttList)); // Sesuai backend: stt_id
+      if (filters.sttList) params.append("stt_id", cleanInput(filters.sttList));
       if (filters.chargeableWeight)
         params.append("chargeable_weight", filters.chargeableWeight);
     } else if (isRT) {
       if (filters.tlcList)
-        params.append("3lc_list", cleanInput(filters.tlcList)); // Untuk rute/3LC
+        params.append("3lc_list", cleanInput(filters.tlcList));
       if (filters.month) params.append("month", filters.month);
       if (filters.mitraCodeList)
         params.append("mitra_code", cleanInput(filters.mitraCodeList));
@@ -152,11 +159,13 @@ export default function ExportUniversalModal({
         params.append("stt_list", cleanInput(filters.sttList));
     }
 
-    // Filter Tanggal (BC menggunakan isodate di backend lewat start_date/end_date)
+    // Filter Tanggal
     if (hasDateRange) {
       if (filters.startDate) params.append("start_date", filters.startDate);
       if (filters.endDate) params.append("end_date", filters.endDate);
     }
+
+    // Filter Master MR
     if (currentType === "mr") {
       if (filters.month) params.append("month", filters.month);
       if (filters.productRouteList) {
@@ -167,23 +176,14 @@ export default function ExportUniversalModal({
       }
     }
 
-    // Append Filter Standar
-    if (hasDateRange) {
-      if (filters.startDate) params.append("start_date", filters.startDate);
-      if (filters.endDate) params.append("end_date", filters.endDate);
-    }
-    if (hasSTT && filters.sttList) {
-      params.append("stt_list", cleanInput(filters.sttList));
-    }
+    // Re-append Filter Standar (Sesuai kodemu yang ada double check)
     if (filters.startDate) params.append("start_date", filters.startDate);
     if (filters.endDate) params.append("end_date", filters.endDate);
-    if (filters.sttList) params.append("stt_list", cleanInput(filters.sttList));
 
     // Append Filter khusus IC
     if (currentType === "ic") {
-      if (filters.remarksList) {
+      if (filters.remarksList)
         params.append("remarks_list", cleanInput(filters.remarksList));
-      }
       if (filters.clientCodeList)
         params.append("client_code_list", cleanInput(filters.clientCodeList));
       if (filters.customerCodeList)
@@ -191,9 +191,8 @@ export default function ExportUniversalModal({
           "customer_code_list",
           cleanInput(filters.customerCodeList),
         );
-      if (filters.awbList) {
+      if (filters.awbList)
         params.append("awb_list", cleanInput(filters.awbList));
-      }
     }
 
     // Append Filter khusus MN
@@ -206,7 +205,7 @@ export default function ExportUniversalModal({
         params.append("kategori_list", cleanInput(filters.kategoriList));
     }
 
-    // Append Filter Spesifik jika tipe mendukung
+    // Append Filter Spesifik Cargo & Origin/Destination
     if (hasCargo && filters.cargoList)
       params.append("cargo_list", cleanInput(filters.cargoList));
     if (hasOrigin && filters.originList)
@@ -218,10 +217,34 @@ export default function ExportUniversalModal({
     if (currentType === "cm" && filters.date)
       params.append("date", filters.date);
 
-    window.open(
-      `${baseUrl}/export/master/${currentType}/csv?${params.toString()}`,
-      "_blank",
-    );
+    // --- EKSEKUSI API CALL ---
+    try {
+      const response = await fetch(
+        `${baseUrl}/exportv2/master/${currentType}/csv?${params.toString()}`,
+      );
+
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      // PERBAIKAN DI SINI:
+      // Ambil job_id (dari backend Go kamu) atau _id (sebagai fallback)
+      const finalJobId = result.job_id || result._id;
+
+      if (finalJobId) {
+        // Teruskan ke function onSuccess di Page utama
+        onSuccess(finalJobId, `${currentType.toUpperCase()} Export`);
+        onClose();
+      } else {
+        console.error("Response dari server:", result);
+        alert("Gagal: ID Pekerjaan tidak ditemukan dalam respon server.");
+      }
+    } catch (error) {
+      console.error("Generate Export Error:", error);
+      alert("Terjadi kesalahan saat menghubungi server.");
+    }
   };
 
   const filteredAvailable = available.filter((col) =>
@@ -596,10 +619,10 @@ export default function ExportUniversalModal({
             )}
 
             <button
-              onClick={handleDownload}
+              onClick={handleGenerateJob}
               className="mt-auto bg-black text-white py-4 rounded-xl font-black uppercase text-xs hover:bg-gray-800 transition-all shadow-lg active:scale-95"
             >
-              Generate & Download
+              Generate
             </button>
           </div>
 

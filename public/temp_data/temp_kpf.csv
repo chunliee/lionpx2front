@@ -1,1 +1,1 @@
-balance_history_id,courier_id,balance_type,balance_amount,current_balance_amount,transaction_type,transaction_note,bank_id,bank_account_owner,bank_account_number,created_at,T,Type_p
+Courier ID,Balance History ID,Balance Type,Balance Amount,Transaction Type,STT No,Created At,Process Created,T,Type_P

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-
+import { useRouter } from "next/navigation";
 // --- KONFIGURASI DATA ---
 const labelMapping: Record<string, string> = {
   kof: "Engine | Konsolidator Outbound Fee",
@@ -19,6 +19,12 @@ const labelMapping: Record<string, string> = {
 };
 
 const vlookupItems = Object.keys(labelMapping);
+const getCurrentMonth = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0"); // Ditambah 1 karena Januari = 0
+  return `${year}-${month}`;
+};
 
 interface ActiveJob {
   jobId: string;
@@ -32,9 +38,32 @@ interface ActiveJob {
 }
 
 export default function ReportPage() {
-  const [selectedMonth, setSelectedMonth] = useState("2026-12");
   const [activeJobs, setActiveJobs] = useState<ActiveJob[]>([]);
   const [isQueueOpen, setIsQueueOpen] = useState(true);
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    if (typeof window !== "undefined") {
+      // Ambil dari localStorage, kalau ga ada baru pakai default bulan sekarang
+      return localStorage.getItem("selected_month") || getCurrentMonth();
+    }
+    return getCurrentMonth();
+  });
+
+  // const router = useRouter();
+
+  // useEffect(() => {
+  //   // Cek auth saat komponen di-mount
+  //   const auth = localStorage.getItem("user_auth");
+
+  //   if (!auth) {
+  //     router.push("/login"); // Redirect ke login kalau gak ada session
+  //   }
+  // }, [router]);
+
+  useEffect(() => {
+    if (selectedMonth) {
+      localStorage.setItem("selected_month", selectedMonth);
+    }
+  }, [selectedMonth]);
 
   const [baseUrl, setBaseUrl] = useState("");
   useEffect(() => {

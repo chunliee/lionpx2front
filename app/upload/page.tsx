@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import ExportMasterModal from "@/components/Modal";
+import { useRouter } from "next/navigation";
 
 // --- KONFIGURASI DATA ---
 const dataContent: Record<string, string[]> = {
@@ -38,17 +39,17 @@ const dataContent: Record<string, string[]> = {
 
 const labelMapping: Record<string, Record<string, string>> = {
   master: {
-    mn: "Master | ID Mitra",
+    mn: "Master | ID Mitra (MN)",
     ic: "Master | Detail STT (M.IC)",
-    ls: "Master | Last Status STT",
-    bc: "Master | Berat STT Corporate",
-    mr: "Master | Routing Transportation & Area",
-    rf: "Master | Rate Forward Area",
-    rt: "Master | Rate Trucking",
-    dt: "Master | Delivery Tiering Policy (DTPOL)",
-    cm: "Master | Detail Manifest Cargo",
-    mt: "Master | Manifest Cargo",
-    ms: "Master | Outgoing Shipment Report",
+    ls: "Master | Last Status STT (LS)",
+    bc: "Master | Berat STT Corporate (BC)",
+    mr: "Master | Routing Transportation & Area (MR)",
+    rf: "Master | Rate Forward Area (RF)",
+    rt: "Master | Rate Trucking (RT)",
+    dt: "Master | Delivery Tiering Policy (DTPOL) (DT)",
+    cm: "Master | Detail Manifest Cargo (CM)",
+    mt: "Master | Manifest Cargo (MT)  ",
+    ms: "Master | Outgoing Shipment Report (MS)",
   },
   tbs: {
     kof: "TBS | Konsolidator Outbound Fee",
@@ -120,6 +121,16 @@ interface ItemStats {
 const MathRound = (val: number) => Math.round(val);
 
 export default function UploadPage() {
+  // const router = useRouter();
+  // useEffect(() => {
+  //   // Cek auth saat komponen di-mount
+  //   const auth = localStorage.getItem("user_auth");
+
+  //   if (!auth) {
+  //     router.push("/login"); // Redirect ke login kalau gak ada session
+  //   }
+  // }, [router]);
+
   const [activeTab, setActiveTab] = useState("master");
 
   const [isExportOpen, setIsExportOpen] = useState(false);
@@ -695,33 +706,56 @@ export default function UploadPage() {
                   {job.status === "done" ? (
                     <div className="mt-2 flex gap-1 animate-in slide-in-from-left duration-500">
                       <div className="flex-1 bg-gray-100 rounded-xl p-2 flex flex-col items-center justify-center border border-gray-200">
-                        <span className="text-[8px] font-bold text-gray-400 uppercase leading-none">
-                          Total
-                        </span>
-                        <span className="text-[10px] font-black">
-                          {job.total}
-                        </span>
-                      </div>
-                      <div className="flex-1 bg-gray-100 rounded-xl p-2 flex flex-col items-center justify-center border border-gray-200">
-                        <span className="text-[8px] font-bold text-gray-400 uppercase leading-none">
-                          New
-                        </span>
-                        <span className="text-[10px] font-black text-green-600">
-                          {job.new_records}
-                        </span>
-                      </div>
-                      <div className="flex-1 bg-gray-100 rounded-xl p-2 flex flex-col items-center justify-center border border-gray-200">
-                        <span className="text-[8px] font-bold text-gray-400 uppercase leading-none">
-                          {/* Jika ada nilai di updated_records, pakai label Upd, selain itu Skp */}
-                          {job.updated_records && job.updated_records > 0
-                            ? "Updated"
-                            : "Skipped"}
-                        </span>
-                        <span className="text-[10px] font-black text-blue-600">
-                          {job.updated_records && job.updated_records > 0
-                            ? job.updated_records
-                            : job.skipped_records || 0}
-                        </span>
+                        <div className="flex gap-2 w-full">
+                          {/* 1. SELALU MUNCUL: TOTAL */}
+                          <div className="flex-1 bg-white rounded-xl p-2 flex flex-col items-center justify-center border border-gray-200 shadow-sm">
+                            <span className="text-[8px] font-black text-gray-400 uppercase">
+                              Total
+                            </span>
+                            <span className="text-[10px] font-black text-black">
+                              {job.total || 0}
+                            </span>
+                          </div>
+
+                          {/* 2. MUNCUL JIKA ADA NEW */}
+                          {job.new_records > 0 && (
+                            <div className="flex-1 bg-green-50 rounded-xl p-2 flex flex-col items-center justify-center border border-green-200">
+                              <span className="text-[8px] font-black text-green-600 uppercase">
+                                New Records
+                              </span>
+                              <span className="text-[10px] font-black text-green-700">
+                                {job.new_records}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* 3. MUNCUL JIKA ADA UPDATED */}
+                          {job.updated_records > 0 && (
+                            <div className="flex-1 bg-blue-50 rounded-xl p-2 flex flex-col items-center justify-center border border-blue-200">
+                              <span className="text-[8px] font-black text-blue-600 uppercase">
+                                Updated
+                              </span>
+                              <span className="text-[10px] font-black text-blue-700">
+                                {job.updated_records}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* 4. MUNCUL JIKA SKIPPED ADA DAN (NEW & UPDATED KOSONG) 
+      Atau hapus kondisi kedua jika ingin Skipped selalu muncul saat > 0 */}
+                          {job.skipped_records > 0 &&
+                            job.new_records === 0 &&
+                            job.updated_records === 0 && (
+                              <div className="flex-1 bg-gray-50 rounded-xl p-2 flex flex-col items-center justify-center border border-gray-200">
+                                <span className="text-[8px] font-black text-gray-400 uppercase">
+                                  Skipped
+                                </span>
+                                <span className="text-[10px] font-black text-gray-600">
+                                  {job.skipped_records}
+                                </span>
+                              </div>
+                            )}
+                        </div>
                       </div>
                     </div>
                   ) : (

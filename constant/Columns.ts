@@ -162,34 +162,34 @@ export const MASTER_COLUMNS_MAP: Record<string, string[]> = {
     "Berat Final",
   ],
   cm: [
-    "stt_no", // STT No
-    "cargo_no", // Cargo No
-    "manifest_validation", // Manifest Validation
-    "courier_id", // Courier ID
-    "courier_type", // Courier Type
-    "created_at", // Created At
-    "origin", // Origin
-    "dest", // Dest.
-    "dropoff_created_at", // Dropoff Created At
-    "dropoff_konsol_id", // Dropoff Konsol ID
-    "dropoff_location", // Dropoff Location
-    "dropoff_partner_code", // Dropoff Partner Code
-    "dropoff_partner_name", // Dropoff Partner Name
-    "dropoff_partner_type", // Dropoff Partner Type
-    "full_name", // Full Name
-    "pickup_created_at", // Pickup Created At
-    "pickup_konsol_id", // Pickup Konsol ID
-    "pickup_location", // Pickup Location
-    "pickup_parter_code", // Pickup Parter Code
-    "pickup_partner_name", // Pickup Partner Name
-    "pickup_partner_type", // Pickup Partner Type
-    "status_validation", // Status Validation
-    "vehicle_plate", // Vehicle Plate
-    "vehicle_type", // Vehicle Type
-    "sync_at", // Sync At
-    "vendor_id", // Vendor ID
-    "vendor_name", // Vendor Name
-    "product", // Product (Mapping ke product_type)
+    "STT No",
+    "Cargo No",
+    "Manifest Validation",
+    "Courier ID",
+    "Courier Type",
+    "Created At",
+    "Origin",
+    "Dest.",
+    "Dropoff Created At",
+    "Dropoff Konsol ID",
+    "Dropoff Location",
+    "Dropoff Partner Code",
+    "Dropoff Partner Name",
+    "Dropoff Partner Type",
+    "Full Name",
+    "Pickup Created At",
+    "Pickup Konsol ID",
+    "Pickup Location",
+    "Pickup Parter Code",
+    "Pickup Partner Name",
+    "Pickup Partner Type",
+    "Status Validation",
+    "Vehicle Plate",
+    "Vehicle Type",
+    "Sync At",
+    "Vendor ID",
+    "Vendor Name",
+    "Product",
   ],
   ms: [
     "Cargo No",
@@ -212,6 +212,43 @@ export const MASTER_COLUMNS_MAP: Record<string, string[]> = {
     "Type",
     "T",
   ],
+  mn: [
+    "Mitra Code Genesis",
+    "Nama Mitra",
+    "Mitra Nama Wth Concatinate",
+    "Kategori",
+    "3LC",
+    "City",
+    "Month",
+  ],
+  mr: ["Product Route", "route_hub_cost", "route_transport", "Month"],
+  bc: [
+    "STT ID",
+    "Stt Date",
+    "Stt Chargeable Weight",
+    "Invoice Number",
+    "Invoice Status",
+  ],
+  rt: [
+    "Mitra Code Genesis / Vendor Name",
+    "Rute",
+    "Origin",
+    "Destination",
+    "Truck Rate",
+    "TLC",
+    "Month",
+  ],
+  rf: [
+    "District Name",
+    "FWD Base Origin",
+    "FWD Base Destination",
+    "Keterangan",
+    "Type Rate",
+    "3LC",
+    "Month",
+    "Valid From",
+    "valid Until",
+  ],
 };
 
 export const LOCKED_MAP: Record<string, string[]> = {
@@ -219,6 +256,11 @@ export const LOCKED_MAP: Record<string, string[]> = {
   ls: ["STT No"],
   dt: ["STT No"],
   mt: ["Cargo No"],
-  cm: ["cargo_no"],
+  cm: ["Cargo No"],
   ms: ["Cargo No"],
+  mn: ["Mitra Code Genesis"],
+  mr: ["Product Route"],
+  bc: ["STT ID"],
+  rt: ["Mitra Code Genesis / Vendor Name"],
+  rf: ["District Name"],
 };

@@ -1,35 +1,54 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 import ExportUniversalModal from "@/components/Export";
 
 export default function ExportICPage() {
+  // const router = useRouter();
+  // useEffect(() => {
+  //   // Cek auth saat komponen di-mount
+  //   const auth = localStorage.getItem("user_auth");
+
+  //   if (!auth) {
+  //     router.push("/login"); // Redirect ke login kalau gak ada session
+  //   }
+  // }, [router]);
   // State untuk kontrol modal mana yang buka
   const [activeModal, setActiveModal] = useState<string | null>(null);
 
   const menu = [
+    { id: "mn", label: "ID Mitra (MN)" },
     { id: "ic", label: "Detail STT (M.IC)" },
-    { id: "ls", label: "Last Status STT" },
+    { id: "ls", label: "Last Status STT (LS)" },
+    { id: "bc", label: "Berat STT Corporate (BC)" },
+    { id: "mr", label: "Routing Transportation & Area (MR)" },
+    { id: "rf", label: "Rate Forward Area (RF)" },
+    { id: "rt", label: "Rate Trucking (RT)" },
     { id: "dt", label: "Delivery Tiering Policy (DTPOL)" },
-    { id: "mt", label: "Manifest Cargo" },
-    { id: "cm", label: "Detail Manifest Cargo" },
-    { id: "ms", label: "Outgoing Shipment Report" },
-    { id: "mn", label: "ID Mitra" },
+    { id: "mt", label: "Manifest Cargo (MT)" },
+    { id: "cm", label: "Detail Manifest Cargo (CM)" },
+    { id: "ms", label: "Outgoing Shipment Report (MS)" },
   ];
 
   return (
     <div className="flex min-h-screen bg-white font-poppins text-black">
-      <aside className="w-64 border-r border-gray-100 p-8 flex flex-col fixed h-full">
-        <h2 className="font-bold text-xl mb-10 tracking-tight text-gray-400">
-          Export Tool
-        </h2>
-        <nav className="flex flex-col gap-2">
+      <aside className="w-64 border-r border-gray-100 flex flex-col fixed h-full bg-white">
+        {/* HEADER - Tetap di atas */}
+        <div className="p-8 pb-4">
+          <h2 className="font-bold text-xl tracking-tight text-gray-400">
+            Export Tool
+          </h2>
+        </div>
+
+        {/* NAV - Bagian yang bisa di-scroll */}
+        <nav className="flex-1 overflow-y-auto px-4 flex flex-col gap-2 scrollbar-hide">
           {menu.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveModal(item.id)}
-              className={`text-left text-lg font-bold pl-4 transition-all py-2 rounded-r-lg ${
+              className={`text-left text-lg font-bold pl-4 transition-all py-2 rounded-lg ${
                 activeModal === item.id
                   ? "text-black border-l-4 border-black bg-gray-50"
                   : "text-gray-400 hover:text-black hover:bg-gray-50 border-l-4 border-transparent"
@@ -40,7 +59,8 @@ export default function ExportICPage() {
           ))}
         </nav>
 
-        <div className="mt-auto">
+        {/* FOOTER - Tetap di bawah */}
+        <div className="p-8 pt-4">
           <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
             <p className="text-[10px] font-black uppercase text-gray-400 mb-1">
               System Status

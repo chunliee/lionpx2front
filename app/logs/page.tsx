@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 interface LogEntry {
   _id: string;
@@ -8,22 +9,36 @@ interface LogEntry {
   month: string;
   status: string;
   progress: number;
+  percentage?: number; // Ditambahkan
   total_rows?: number;
   created_at: string;
   start_at?: string;
   finished_at?: string;
   file_name?: string;
   file_path?: string;
+  // Field baru dari backend
+  new_records_count?: number;
+  skipped_records_count?: number;
+  updated_records_count?: number;
+  total?: number;
 }
 
 export default function LogsPage() {
+  // const router = useRouter();
+  // useEffect(() => {
+  //   // Cek auth saat komponen di-mount
+  //   const auth = localStorage.getItem("user_auth");
+
+  //   if (!auth) {
+  //     router.push("/login"); // Redirect ke login kalau gak ada session
+  //   }
+  // }, [router]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalData, setTotalData] = useState(0);
 
-  // FILTER STATES
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedType, setSelectedType] = useState("");
   const [selectedMonth, setSelectedMonth] = useState("");
@@ -84,7 +99,6 @@ export default function LogsPage() {
 
   const fetchLogs = async () => {
     try {
-      // Pastikan category dikirim lowercase sesuai ekspektasi backend baru
       const params = new URLSearchParams({
         page: page.toString(),
         limit: "10",
@@ -108,7 +122,6 @@ export default function LogsPage() {
     }
   };
 
-  // Helper untuk mendapatkan nama file yang akan ditampilkan
   const displayFileName = (log: LogEntry) => {
     if (log.file_name && log.file_name !== "") return log.file_name;
     if (log.file_path) {
@@ -155,14 +168,12 @@ export default function LogsPage() {
             Backend Activity & Job History
           </p>
         </div>
-        <div className="flex gap-4">
-          <button
-            onClick={fetchLogs}
-            className="border-2 border-black px-6 py-2 text-[10px] font-black uppercase hover:bg-black hover:text-white transition-all"
-          >
-            Sync Data
-          </button>
-        </div>
+        <button
+          onClick={fetchLogs}
+          className="border-2 border-black px-6 py-2 text-[10px] font-black uppercase hover:bg-black hover:text-white transition-all"
+        >
+          Sync Data
+        </button>
       </header>
 
       {/* FILTER BAR */}
@@ -171,16 +182,17 @@ export default function LogsPage() {
           value={selectedCategory}
           onChange={(e) => {
             setSelectedCategory(e.target.value);
-            setSelectedType(""); // Reset type saat ganti kategori
+            setSelectedType("");
             setPage(1);
           }}
           className="border-2 border-black p-2 text-[10px] font-black uppercase outline-none focus:bg-black focus:text-white transition-all cursor-pointer"
         >
           <option value="">All Category</option>
-          <option value="MASTER">Master</option>
-          <option value="DATA">Data</option>
-          <option value="TBS">TBS</option>
-          <option value="VLOOKUP">Vlookup</option>
+          {Object.keys(categoryMap).map((cat) => (
+            <option key={cat} value={cat}>
+              {cat}
+            </option>
+          ))}
         </select>
 
         <select
@@ -211,9 +223,9 @@ export default function LogsPage() {
           }}
           className="border-2 border-black p-2 text-[10px] font-black uppercase outline-none focus:bg-black focus:text-white transition-all w-48"
         />
+
         <button
           onClick={() => {
-            // Gunakan lowercase kategori untuk export juga
             const params = new URLSearchParams({
               category: selectedCategory.toLowerCase(),
               type: selectedType,
@@ -223,7 +235,6 @@ export default function LogsPage() {
           }}
           className="ml-auto bg-black text-white border-2 border-black px-6 py-2 text-[10px] font-black uppercase hover:bg-white hover:text-black transition-all flex items-center gap-2"
         >
-          <i className=" text-sm"></i>
           Export
         </button>
       </div>
@@ -245,7 +256,10 @@ export default function LogsPage() {
                 Status
               </th>
               <th className="text-left py-4 px-2 text-[10px] font-black uppercase">
-                Execution
+                Stash (Records)
+              </th>
+              <th className="text-left py-4 px-2 text-[10px] font-black uppercase">
+                Execution Time
               </th>
               <th className="text-center py-4 px-2 text-[10px] font-black uppercase">
                 Action
@@ -268,10 +282,8 @@ export default function LogsPage() {
                       <span className="text-[9px] text-gray-400 font-mono mt-0.5">
                         ID: {log._id}
                       </span>
-                      {/* FILE NAME BADGE */}
                       {fileName && (
                         <div className="mt-2 flex items-center gap-1.5">
-                          <i className="ri-file-text-line text-gray-400 text-[10px]"></i>
                           <span className="bg-gray-100 text-gray-600 px-2 py-0.5 border border-gray-200 text-[9px] font-bold rounded uppercase tracking-wider truncate max-w-[200px]">
                             {fileName}
                           </span>
@@ -282,8 +294,18 @@ export default function LogsPage() {
                   <td className="py-6 px-2 text-[11px] font-black text-gray-600 italic">
                     {log.month}
                   </td>
-                  <td className="py-6 px-2 text-xs font-black">
-                    {(log.progress || 0).toLocaleString()}
+                  <td className="py-6 px-2">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs font-black">
+                        {(log.progress || 0).toLocaleString()}
+                      </span>
+                      {/* <div className="w-24 h-1 bg-gray-100 overflow-hidden">
+                        <div
+                          className="h-full bg-black transition-all"
+                          style={{ width: `${log.percentage || 0}%` }}
+                        />
+                      </div> */}
+                    </div>
                   </td>
                   <td className="py-6 px-2">
                     <div
@@ -292,18 +314,70 @@ export default function LogsPage() {
                       {log.status}
                     </div>
                   </td>
-                  <td className="py-6 px-2 text-[10px]">
-                    <div className="flex flex-col gap-1 text-gray-600 font-bold">
-                      <span>
-                        Start: {formatDateTime(log.start_at || log.created_at)}
-                      </span>
-                      {log.finished_at && (
-                        <span className="text-green-400">
-                          Done: {formatDateTime(log.finished_at)}
+
+                  {/* KOLOM STASH: Menampilkan New vs Skipped/Updated */}
+                  <td className="py-6 px-2">
+                    <div className="flex flex-col gap-1.5">
+                      {/* Baris New Records */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-black uppercase border border-green-200">
+                          New
                         </span>
+                        <span className="text-xs font-black">
+                          {(log.new_records_count || 0).toLocaleString()}
+                        </span>
+                      </div>
+
+                      {/* Baris Skipped ATAU Updated */}
+                      <div className="flex items-center gap-2 opacity-60">
+                        {log.updated_records_count &&
+                        log.updated_records_count > 0 ? (
+                          <>
+                            <span className="text-[9px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-black uppercase border border-blue-200">
+                              Updated
+                            </span>
+                            <span className="text-[11px] font-bold font-mono">
+                              {log.updated_records_count.toLocaleString()}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-[9px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-black uppercase border border-gray-200">
+                              Skipped
+                            </span>
+                            <span className="text-[11px] font-bold font-mono">
+                              {(
+                                log.skipped_records_count || 0
+                              ).toLocaleString()}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* KOLOM EXECUTION: Menampilkan Start & Done Time */}
+                  <td className="py-6 px-2 text-[10px]">
+                    <div className="flex flex-col gap-1 text-gray-500 font-bold">
+                      <div className="flex  gap-4">
+                        <span className="opacity-50 uppercase tracking-tighter">
+                          Start
+                        </span>
+                        <span>
+                          {formatDateTime(log.start_at || log.created_at)}
+                        </span>
+                      </div>
+                      {log.finished_at && (
+                        <div className="flex gap-4 text-black">
+                          <span className="opacity-50 uppercase tracking-tighter">
+                            Done
+                          </span>
+                          <span>{formatDateTime(log.finished_at)}</span>
+                        </div>
                       )}
                     </div>
                   </td>
+
                   <td className="py-6 px-2 text-center">
                     {log.status === "done" && log.file_path && (
                       <button
