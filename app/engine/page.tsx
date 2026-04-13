@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Cookies from "js-cookie";
 // --- KONFIGURASI DATA ---
 const labelMapping: Record<string, string> = {
   kof: "Engine | Konsolidator Outbound Fee",
@@ -26,6 +27,12 @@ const getCurrentMonth = () => {
   return `${year}-${month}`;
 };
 
+const roleAccess: Record<string, string[]> = {
+  admin: ["all"],
+  role1: ["kof", "kif", "sof", "sif", "fro", "rd"],
+  role2: ["pof", "def", "tuc", "stt", "kpf", "kdf"],
+};
+
 interface ActiveJob {
   jobId: string;
   itemName: string;
@@ -40,12 +47,51 @@ interface ActiveJob {
 export default function ReportPage() {
   const [activeJobs, setActiveJobs] = useState<ActiveJob[]>([]);
   const [isQueueOpen, setIsQueueOpen] = useState(true);
+  const [userInfo, setUserInfo] = useState<{
+    name: string;
+    role: string;
+  } | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(() => {
     if (typeof window !== "undefined") {
       // Ambil dari localStorage, kalau ga ada baru pakai default bulan sekarang
       return localStorage.getItem("selected_month") || getCurrentMonth();
     }
     return getCurrentMonth();
+  });
+  const [userRole, setUserRole] = useState<string>("");
+  useEffect(() => {
+    const auth = Cookies.get("user_auth");
+    if (auth) {
+      try {
+        const parsed = JSON.parse(auth);
+        // SIMPAN DATA USER KE STATE DISINI
+        setUserInfo(parsed);
+        setUserRole(parsed.role);
+      } catch (err) {
+        console.error("Gagal parse user info:", err);
+      }
+    }
+  }, []);
+  useEffect(() => {
+    const auth = Cookies.get("user_auth");
+    if (auth) {
+      try {
+        const parsed = JSON.parse(auth);
+        setUserRole(parsed.role);
+      } catch (err) {
+        console.error("Gagal parse role:", err);
+      }
+    }
+  }, []);
+
+  // Filter items berdasarkan role
+  const allowedItems = Object.keys(labelMapping).filter((item) => {
+    if (!userRole) return false;
+    const access = roleAccess[userRole];
+    if (!access) return false;
+
+    // Jika admin, izinkan semua. Jika role lain, cek apakah item ada di list.
+    return access.includes("all") || access.includes(item.toLowerCase());
   });
 
   // const router = useRouter();
@@ -132,13 +178,14 @@ export default function ReportPage() {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      alert("⚠️ Gagal mendownload file");
+      alert("Gagal mendownload file");
     }
   };
 
   const handleRunEngine = async (item: string) => {
     const formData = new FormData();
     formData.append("month", selectedMonth);
+    formData.append("user", userInfo?.name || "");
 
     try {
       const response = await fetch(`${baseUrl}/engine/${item}/generate`, {
@@ -198,63 +245,59 @@ export default function ReportPage() {
         </header>
 
         <div className="space-y-4">
-          {vlookupItems.map((item) => (
-            <div
-              key={item}
-              className="group flex flex-col bg-gray-100 rounded-2xl overflow-hidden border border-transparent hover:border-gray-200 transition-all shadow-sm"
-            >
-              <div className="flex justify-between items-center p-6">
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-3">
-                    <span
-                      onClick={() => handleRunEngine(item)}
-                      className="text-lg font-bold uppercase tracking-tight cursor-pointer hover:text-blue-600 transition-colors"
-                    >
-                      {labelMapping[item]}
-                    </span>
-                    {activeJobs.some(
-                      (j) => j.itemName === item && j.status !== "done",
-                    ) && (
-                      <span className="bg-blue-600 px-3 py-1 rounded-xl text-[9px] font-black uppercase text-white animate-pulse">
-                        Running...
+          {/* MENGGUNAKAN allowedItems UNTUK RENDER */}
+          {allowedItems.length > 0 ? (
+            allowedItems.map((item) => (
+              <div
+                key={item}
+                className="group flex flex-col bg-gray-100 rounded-2xl overflow-hidden border border-transparent hover:border-gray-200 transition-all shadow-sm"
+              >
+                <div className="flex justify-between items-center p-6">
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-3">
+                      <span
+                        onClick={() => handleRunEngine(item)}
+                        className="text-lg font-bold uppercase tracking-tight cursor-pointer hover:text-blue-600 transition-colors"
+                      >
+                        {labelMapping[item]}
                       </span>
-                    )}
+                      {activeJobs.some(
+                        (j) => j.itemName === item && j.status !== "done",
+                      ) && (
+                        <span className="bg-blue-600 px-3 py-1 rounded-xl text-[9px] font-black uppercase text-white animate-pulse">
+                          Running...
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-gray-400 font-medium mt-1">
+                      Process VLOOKUP for {labelMapping[item]}
+                    </span>
                   </div>
-                  <span className="text-[10px] text-gray-400 font-medium mt-1">
-                    Process VLOOKUP for {labelMapping[item]}
-                  </span>
-                </div>
 
-                <div className="flex items-center gap-4">
-                  <div
-                    onClick={() => handleRunEngine(item)}
-                    className="flex items-center justify-center w-10 h-10 bg-black text-white rounded-full opacity-0 group-hover:opacity-100 transition-all cursor-pointer transform translate-x-2 group-hover:translate-x-0"
-                  >
-                    <i className="ri-play-fill text-xl"></i>
+                  <div className="flex items-center gap-4">
+                    <div
+                      onClick={() => handleRunEngine(item)}
+                      className="flex items-center justify-center w-10 h-10 bg-black text-white rounded-full opacity-0 group-hover:opacity-100 transition-all cursor-pointer transform translate-x-2 group-hover:translate-x-0"
+                    >
+                      <i className="ri-play-fill text-xl"></i>
+                    </div>
                   </div>
                 </div>
               </div>
-              {/* STATS BAR (Sama UI dengan Upload Master)
-              <div className="flex border-t border-gray-200 bg-white/50 divide-x divide-gray-200">
-                <div className="flex-1 px-6 py-2.5 flex items-center justify-between">
-                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
-                    System Status
-                  </span>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-green-600">
-                    Ready
-                  </span>
-                </div>
-                <div className="flex-1 px-6 py-2.5 flex items-center justify-between bg-black/5">
-                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
-                    Active Period
-                  </span>
-                  <span className="text-[10px] font-black text-blue-600 uppercase">
-                    {selectedMonth}
-                  </span>
-                </div>
-              </div> */}
+            ))
+          ) : (
+            /* STATE JIKA TIDAK PUNYA AKSES */
+            <div className="text-center py-20 border-2 border-dashed border-gray-100 rounded-3xl">
+              <i className="ri-lock-2-line text-3xl text-gray-300 mb-3 block"></i>
+              <p className="text-sm font-bold uppercase tracking-widest text-gray-400">
+                Akses Dibatasi
+              </p>
+              <p className="text-[10px] text-gray-400 uppercase">
+                Anda tidak memiliki izin untuk menjalankan engine di periode
+                ini.
+              </p>
             </div>
-          ))}
+          )}
         </div>
       </main>
 
@@ -305,7 +348,6 @@ export default function ReportPage() {
 
                   {job.status === "done" ? (
                     <div className="mt-3 flex flex-col gap-2 animate-in slide-in-from-bottom-2 duration-300">
-                      {/* Logika Pecah Part Download Berdasarkan Separator '|' */}
                       {(job.filePaths || "Result")
                         .split("|")
                         .map((_, idx, all) => (
@@ -331,7 +373,7 @@ export default function ReportPage() {
                   ) : (
                     <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden mt-2">
                       <div
-                        className="h-full bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.4)] transition-all duration-500"
+                        className="h-full bg-blue-600 transition-all duration-500"
                         style={{ width: `${job.percentage}%` }}
                       ></div>
                     </div>

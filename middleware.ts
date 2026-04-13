@@ -36,7 +36,7 @@ export function middleware(request: NextRequest) {
       const restrictedForLowerRoles = ["/engine"];
       if (
         restrictedForLowerRoles.includes(pathname) &&
-        !["admin", "subadmin", "role1"].includes(userRole)
+        !["admin", "subadmin", "role1", "role2"].includes(userRole)
       ) {
         return NextResponse.redirect(new URL("/", request.url));
       }

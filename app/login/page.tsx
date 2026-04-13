@@ -166,9 +166,8 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-10 text-center text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
-          Authorized Personnel Only <br />
-          <span className="text-gray-300">© 2026 - Data Analyst Dev</span>
+        <p className="mt-2 text-center text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
+          © 2026 - Data Analyst Dev <br />
         </p>
       </div>
     </div>

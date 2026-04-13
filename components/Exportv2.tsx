@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { MASTER_COLUMNS_MAP, LOCKED_MAP } from "../constant/Columns";
+import Cookies from "js-cookie";
 
 interface ExportUniversalModalProps {
   type: string | null;
@@ -77,7 +78,22 @@ export default function ExportUniversalModalv2({
     districtName: "",
     remarksList: "",
   });
+  const [userInfo, setUserInfo] = useState<{
+    name: string;
+    role: string;
+  } | null>(null);
 
+  useEffect(() => {
+    const auth = Cookies.get("user_auth");
+    if (auth) {
+      try {
+        const parsed = JSON.parse(auth);
+        setUserInfo(parsed); // Simpan seluruh objek user (termasuk name)
+      } catch (err) {
+        console.error("Gagal parse user data:", err);
+      }
+    }
+  }, []);
   useEffect(() => {
     if (isOpen) {
       setAvailable(masterColumns.filter((c) => !lockedColumns.includes(c)));
@@ -131,6 +147,7 @@ export default function ExportUniversalModalv2({
 
     const params = new URLSearchParams({
       columns: selected.join("|"),
+      user: userInfo?.name || "System User",
     });
 
     // --- LOGIC FILTER (Lengkap sesuai kodemu) ---

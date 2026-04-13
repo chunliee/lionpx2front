@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import ExportMasterModal from "@/components/Modal";
 import { useRouter } from "next/navigation";
-
+import Cookies from "js-cookie";
 // --- KONFIGURASI DATA ---
 const dataContent: Record<string, string[]> = {
   master: ["mn", "ic", "ls", "bc", "mr", "rf", "rt", "dt", "mt", "cm", "ms"],
@@ -92,6 +92,7 @@ interface ActiveJob {
   updated_records: number; // Mapping dari updated_records_count
   skipped_records: number; // Mapping dari skipped_records_count
   type?: string;
+  user: string;
   category?: string;
 }
 
@@ -104,6 +105,7 @@ interface ServerJobResponse {
   updated_records: number; // Pakai nama asli dari JSON kamu
   skipped_records: number; // Pakai nama asli dari JSON kamu
   percentage: number;
+  user: string;
   progress: number;
   status: string;
   total: number;
@@ -130,6 +132,84 @@ export default function UploadPage() {
   //     router.push("/login"); // Redirect ke login kalau gak ada session
   //   }
   // }, [router]);
+  // Di dalam function UploadPage()
+  const [userRole, setUserRole] = useState<string>("");
+  useEffect(() => {
+    const auth = Cookies.get("user_auth");
+    if (auth) {
+      try {
+        const parsed = JSON.parse(auth);
+        setUserRole(parsed.role);
+      } catch (err) {
+        console.error("Gagal parse role:", err);
+      }
+    }
+  }, []);
+  const [userInfo, setUserInfo] = useState<{
+    name: string;
+    role: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const auth = Cookies.get("user_auth");
+    if (auth) {
+      try {
+        const parsed = JSON.parse(auth);
+        // SIMPAN DATA USER KE STATE DISINI
+        setUserInfo(parsed);
+        setUserRole(parsed.role);
+      } catch (err) {
+        console.error("Gagal parse user info:", err);
+      }
+    }
+  }, []);
+
+  const isAllowed = (category: string, item: string) => {
+    // Admin & Subadmin: All Access
+    if (userRole === "admin" || userRole === "subadmin") return true;
+
+    const rolePermissions: Record<string, any> = {
+      role1: {
+        master: ["ls", "mr", "rf"],
+        tbs: ["kof", "kif", "sof", "sif", "fro", "frd"],
+        data: ["kof", "kif", "sof", "sif", "fro", "frd"],
+      },
+      role2: {
+        master: ["rt", "dt"],
+        tbs: ["pof", "def", "tuc", "stt", "kpf", "kdf"],
+        data: ["pof", "def", "tuc", "stt", "kpf", "kdf"],
+      },
+      role3: {
+        master: ["mt", "cm"],
+        tbs: [],
+        data: [],
+      },
+      guess: {
+        // alias guest
+        master: [],
+        tbs: [],
+        data: [
+          "kof",
+          "kif",
+          "sof",
+          "sif",
+          "pof",
+          "def",
+          "fro",
+          "frd",
+          "tuc",
+          "stt",
+          "kpf",
+          "kdf",
+        ],
+      },
+    };
+
+    const permissions = rolePermissions[userRole];
+    if (!permissions) return false;
+
+    return permissions[category]?.includes(item.toLowerCase());
+  };
 
   const [activeTab, setActiveTab] = useState("master");
 
@@ -219,6 +299,7 @@ export default function UploadPage() {
               new_records: data.new_records_count || 0,
               updated_records: data.updated_records_count || 0,
               skipped_records: data.skipped_records_count || 0,
+              user: data.user,
             };
           } catch (err) {
             return job;
@@ -262,6 +343,7 @@ export default function UploadPage() {
               skipped_records: sJob.skipped_records ?? 0,
               type: sJob.type,
               category: sJob.category,
+              user: sJob.user,
             };
 
             const existingIdx = newJobsState.findIndex(
@@ -453,6 +535,7 @@ export default function UploadPage() {
         const formData = new FormData();
         formData.append("month", selectedMonth);
         formData.append("file", file);
+        formData.append("user", userInfo?.name || "");
         if (item === "rf") {
           formData.append("valid_from", validFrom);
           formData.append("valid_until", validUntil);
@@ -546,7 +629,7 @@ export default function UploadPage() {
               {activeTab} Upload List
             </h1>
             <p className="text-xs text-gray-400 mt-1 uppercase">
-              Database Row Tracker Enabled
+              Insert Master Data
             </p>
           </div>
           <div className="flex flex-col items-end gap-1">
@@ -567,94 +650,110 @@ export default function UploadPage() {
         <div
           className={`max-w-3xl space-y-4 transition-opacity duration-300 ${isMonthEmpty ? "opacity-40 cursor-not-allowed" : "opacity-100"}`}
         >
-          {dataContent[activeTab].map((item) => (
-            <div
-              key={item}
-              className="group flex flex-col bg-gray-100 rounded-2xl overflow-hidden border border-transparent hover:border-gray-200 transition-all"
-            >
-              <div className="flex justify-between items-center p-6">
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-3">
-                    <span
-                      onClick={() => handleFileUpload(item)}
-                      className="text-lg font-bold uppercase tracking-tight cursor-pointer"
-                    >
-                      {/* Logic: Ambil dari [activeTab][item], kalau ga ada balik ke [item] saja */}
-                      {labelMapping[activeTab]?.[item] || item}
-                    </span>
-                    {activeJobs.some(
-                      (j) =>
-                        j.itemName.includes(item.toUpperCase()) &&
-                        j.status !== "done",
-                    ) && (
-                      <span className="bg-blue-600 px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest text-white animate-pulse">
-                        Uploading...
+          {/* Ganti bagian dataContent[activeTab].map((item) => ... dengan ini */}
+
+          {dataContent[activeTab]
+            .filter((item) => isAllowed(activeTab, item)) // Filter berdasarkan role di sini
+            .map((item) => (
+              <div
+                key={item}
+                className="group flex flex-col bg-gray-100 rounded-2xl overflow-hidden border border-transparent hover:border-gray-200 transition-all"
+              >
+                <div className="flex justify-between items-center p-6">
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-3">
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => !isMonthEmpty && handleFileUpload(item)}
+                        onKeyDown={(e) =>
+                          e.key === "Enter" &&
+                          !isMonthEmpty &&
+                          handleFileUpload(item)
+                        }
+                        className="text-lg font-bold uppercase tracking-tight cursor-pointer focus:outline-none"
+                      >
+                        {labelMapping[activeTab]?.[item] || item}
                       </span>
+                      {activeJobs.some(
+                        (j) =>
+                          j.itemName.includes(item.toUpperCase()) &&
+                          j.status !== "done",
+                      ) && (
+                        <span className="bg-blue-600 px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest text-white animate-pulse">
+                          Uploading...
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Date Picker for RF item */}
+                    {item === "rf" && (
+                      <div className="flex gap-4 mt-3 p-3 bg-white/50 rounded-lg border border-dashed border-gray-300">
+                        <div className="flex flex-col">
+                          <label className="text-[9px] font-black uppercase text-gray-400">
+                            From
+                          </label>
+                          <input
+                            type="date"
+                            value={validFrom}
+                            onChange={(e) => setValidFrom(e.target.value)}
+                            className="bg-transparent text-xs font-bold outline-none"
+                          />
+                        </div>
+                        <div className="flex flex-col">
+                          <label className="text-[9px] font-black uppercase text-gray-400">
+                            Until
+                          </label>
+                          <input
+                            type="date"
+                            value={validUntil}
+                            onChange={(e) => setValidUntil(e.target.value)}
+                            className="bg-transparent text-xs font-bold outline-none"
+                          />
+                        </div>
+                      </div>
                     )}
                   </div>
-                  {item === "rf" && (
-                    <div className="flex gap-4 mt-3 p-3 bg-white/50 rounded-lg border border-dashed border-gray-300">
-                      <div className="flex flex-col">
-                        <label className="text-[9px] font-black uppercase text-gray-400">
-                          From
-                        </label>
-                        <input
-                          type="date"
-                          value={validFrom}
-                          onChange={(e) => setValidFrom(e.target.value)}
-                          className="bg-transparent text-xs font-bold outline-none"
-                        />
-                      </div>
-                      <div className="flex flex-col">
-                        <label className="text-[9px] font-black uppercase text-gray-400">
-                          Until
-                        </label>
-                        <input
-                          type="date"
-                          value={validUntil}
-                          onChange={(e) => setValidUntil(e.target.value)}
-                          className="bg-transparent text-xs font-bold outline-none"
-                        />
-                      </div>
+
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={() => handleDownloadTemplate(item)}
+                      className="bg-black px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-white hover:bg-gray-800 transition-all shadow-sm"
+                    >
+                      Template
+                    </button>
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => !isMonthEmpty && handleFileUpload(item)}
+                      className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                    >
+                      <i className="ri-add-line text-2xl text-black"></i>
                     </div>
-                  )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={() => handleDownloadTemplate(item)}
-                    className="bg-black px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-white hover:bg-gray-800 transition-all shadow-sm"
-                  >
-                    Template
-                  </button>
-                  <div
-                    onClick={() => handleFileUpload(item)}
-                    className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                  >
-                    <i className="ri-add-line text-2xl text-black"></i>
+
+                {/* Row Stats Footer */}
+                <div className="flex border-t border-gray-200 bg-white/50 divide-x divide-gray-200">
+                  <div className="flex-1 px-6 py-2 flex items-center justify-between">
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
+                      Total Master Rows
+                    </span>
+                    <span className="text-xs font-black">
+                      {(stats[item]?.total_all || 0).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex-1 px-6 py-2 flex items-center justify-between bg-black/5">
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
+                      Rows in {selectedMonth || "Month"}
+                    </span>
+                    <span className="text-xs font-black text-blue-600">
+                      {(stats[item]?.total_month || 0).toLocaleString()}
+                    </span>
                   </div>
                 </div>
               </div>
-
-              <div className="flex border-t border-gray-200 bg-white/50 divide-x divide-gray-200">
-                <div className="flex-1 px-6 py-2 flex items-center justify-between">
-                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
-                    Total Master Rows
-                  </span>
-                  <span className="text-xs font-black">
-                    {(stats[item]?.total_all || 0).toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex-1 px-6 py-2 flex items-center justify-between bg-black/5">
-                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
-                    Rows in {selectedMonth || "Month"}
-                  </span>
-                  <span className="text-xs font-black text-blue-600">
-                    {(stats[item]?.total_month || 0).toLocaleString()}
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
+            ))}
         </div>
       </main>
 
@@ -681,10 +780,18 @@ export default function UploadPage() {
                   className="p-3 border-b border-gray-50 last:border-0"
                 >
                   <div className="flex justify-between items-start mb-1">
-                    <span className="text-[10px] font-bold uppercase truncate w-32">
-                      {job.itemName}
-                    </span>
-                    <div className="flex items-center gap-2">
+                    {/* Bungkus itemName dan user dalam satu div flex-col */}
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-[10px] font-bold uppercase truncate pr-2">
+                        {job.itemName}
+                      </span>
+                      {/* Tampilkan user di bawah nama file dengan ukuran lebih kecil */}
+                      <span className="text-[9px] text-gray-400 font-medium italic">
+                        by {job.user || "Unknown  "}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-shrink-0">
                       {job.status === "done" ? (
                         <i className="ri-checkbox-circle-fill text-green-500"></i>
                       ) : job.status === "failed" ? (

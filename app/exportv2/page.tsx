@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ExportUniversalModal from "@/components/Export";
 import ExportUniversalModalv2 from "@/components/Exportv2";
+import Cookies from "js-cookie";
 
 // 1. Definisikan interface untuk Job
 interface ActiveJob {
@@ -21,6 +22,22 @@ export default function ExportICPage() {
 
   // 2. State untuk menampung daftar job yang sedang berjalan
   const [activeJobs, setActiveJobs] = useState<ActiveJob[]>([]);
+  const [userInfo, setUserInfo] = useState<{
+    name: string;
+    role: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const auth = Cookies.get("user_auth");
+    if (auth) {
+      try {
+        const parsed = JSON.parse(auth);
+        setUserInfo(parsed); // Simpan seluruh objek user (termasuk name)
+      } catch (err) {
+        console.error("Gagal parse user data:", err);
+      }
+    }
+  }, []);
 
   // useEffect(() => {
   //   const auth = localStorage.getItem("user_auth");

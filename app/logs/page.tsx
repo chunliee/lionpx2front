@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import Cookies from "js-cookie";
 
 interface LogEntry {
   _id: string;
   type: string;
   month: string;
+  user: string;
   status: string;
   progress: number;
   percentage?: number; // Ditambahkan
@@ -44,6 +45,18 @@ export default function LogsPage() {
   const [selectedMonth, setSelectedMonth] = useState("");
 
   const baseUrl = `http://${window.location.hostname}:8080`;
+  const [userRole, setUserRole] = useState<string>("");
+  useEffect(() => {
+    const auth = Cookies.get("user_auth");
+    if (auth) {
+      try {
+        const parsed = JSON.parse(auth);
+        setUserRole(parsed.role);
+      } catch (err) {
+        console.error("Gagal parse role:", err);
+      }
+    }
+  }, []);
 
   const categoryMap: { [key: string]: string[] } = {
     MASTER: [
@@ -156,17 +169,38 @@ export default function LogsPage() {
         return "bg-gray-50 text-gray-700 border-gray-200";
     }
   };
+  const handleDelete = async (jobId: string) => {
+    if (!confirm("Hapus seluruh data terkait job ini?")) return;
 
+    try {
+      const response = await fetch(`${baseUrl}/jobs/delete/${jobId}`, {
+        method: "DELETE", // Harus huruf kapital
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        // Langsung panggil fetchLogs agar UI update ke status 'deleting'
+        fetchLogs();
+      } else {
+        const errJson = await response.json();
+        alert(`Gagal: ${errJson.message || "Status error dari server"}`);
+      }
+    } catch (error) {
+      console.error("Fetch error:", error);
+      alert(
+        "Koneksi ditolak! Cek apakah Backend sudah update CORS dan sedang running.",
+      );
+    }
+  };
   return (
     <div className="min-h-screen bg-white font-poppins text-black p-12">
       <header className="flex justify-between items-end mb-12 border-b-4 border-black pb-8">
         <div>
-          <h1 className="text-6xl font-black uppercase tracking-tighter">
+          <h1 className="text-3xl font-black uppercase tracking-tighter">
             System Logs
           </h1>
-          <p className="text-[10px] text-gray-400 mt-2 font-bold uppercase tracking-[0.4em]">
-            Backend Activity & Job History
-          </p>
         </div>
         <button
           onClick={fetchLogs}
@@ -250,6 +284,9 @@ export default function LogsPage() {
                 Periode
               </th>
               <th className="text-left py-4 px-2 text-[10px] font-black uppercase">
+                User
+              </th>
+              <th className="text-left py-4 px-2 text-[10px] font-black uppercase">
                 Progress
               </th>
               <th className="text-left py-4 px-2 text-[10px] font-black uppercase">
@@ -293,6 +330,9 @@ export default function LogsPage() {
                   </td>
                   <td className="py-6 px-2 text-[11px] font-black text-gray-600 italic">
                     {log.month}
+                  </td>
+                  <td className="py-6 px-2 text-[11px] font-black text-gray-600 italic">
+                    {log.user}
                   </td>
                   <td className="py-6 px-2">
                     <div className="flex flex-col gap-1">
@@ -379,20 +419,47 @@ export default function LogsPage() {
                   </td>
 
                   <td className="py-6 px-2 text-center">
-                    {log.status === "done" && log.file_path && (
-                      <button
-                        onClick={() =>
-                          window.open(
-                            `${baseUrl}/download/generic?path=${encodeURIComponent(log.file_path || "")}`,
-                            "_blank",
-                          )
-                        }
-                        className="text-black hover:text-green-600 transition-colors"
-                        title="Download File"
-                      >
-                        <i className="ri-download-cloud-2-line text-xl"></i>
-                      </button>
-                    )}
+                    <div className="flex items-center justify-center gap-4">
+                      {/* Tombol Download: Bisa dilihat SEMUA ROLE */}
+                      {log.status === "done" && log.file_path && (
+                        <button
+                          onClick={() =>
+                            window.open(
+                              `${baseUrl}/download/generic?path=${encodeURIComponent(log.file_path || "")}`,
+                              "_blank",
+                            )
+                          }
+                          className="text-black hover:text-green-600 transition-colors"
+                          title="Download File"
+                        >
+                          <i className="ri-download-cloud-2-line text-xl"></i>
+                        </button>
+                      )}
+
+                      {/* Logic Delete: HANYA UNTUK ADMIN */}
+                      {userRole === "admin" && (
+                        <>
+                          {log.status !== "deleting" &&
+                          log.status !== "deleted" ? (
+                            <button
+                              onClick={() => handleDelete(log._id)}
+                              className="text-black hover:text-red-600 transition-colors"
+                              title="Delete Data"
+                            >
+                              <i className="ri-delete-bin-7-line text-xl"></i>
+                            </button>
+                          ) : log.status === "deleting" ? (
+                            <span className="text-blue-600 animate-spin">
+                              <i className="ri-loader-4-line text-xl"></i>
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-black text-gray-400">
+                              REMOVED
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Cookies from "js-cookie";
+import { TbLogout2 } from "react-icons/tb";
 
 const Navbar = () => {
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -68,7 +69,7 @@ const Navbar = () => {
             )}
 
             {/* ENGINE: Hanya admin, subadmin, role1 */}
-            {canAccess(["admin", "subadmin", "role1"]) && (
+            {canAccess(["admin", "subadmin", "role1", "role2"]) && (
               <li>
                 <Link href="/engine">Engine</Link>
               </li>
@@ -80,16 +81,16 @@ const Navbar = () => {
             </li>
 
             {/* DELETE: Hanya Admin yang bisa lihat */}
-            {canAccess(["admin"]) && (
+            {/* {canAccess(["admin"]) && (
               <li className="text-red-500 font-bold">
                 <Link href="/delete">Delete</Link>
               </li>
-            )}
+            )} */}
 
             <li>
               <button
                 onClick={handleLogout}
-                className="text-red-500 font-bold hover:underline transition-all"
+                className="text-red-500 font-bold py-1 px-4 rounded-2xl hover:underline hover:text-black transition-all"
               >
                 Logout
               </button>

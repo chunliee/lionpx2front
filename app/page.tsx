@@ -27,7 +27,7 @@ export default function Home() {
   return (
     <div className="p-8">
       <h1 className="text-2xl font-bold">
-        Selamat Datang,{" "}
+        Welcome,{" "}
         <span className="text-blue-600">{userData?.name || "XXXXXXXXXX"}</span>!
       </h1>
       <p className="text-gray-500 mt-2">
