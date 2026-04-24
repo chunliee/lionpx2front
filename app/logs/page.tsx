@@ -43,6 +43,7 @@ export default function LogsPage() {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedType, setSelectedType] = useState("");
   const [selectedMonth, setSelectedMonth] = useState("");
+  const [selectedJobId, setSelectedJobId] = useState("");
 
   const baseUrl = `http://${window.location.hostname}:8080`;
   const [userRole, setUserRole] = useState<string>("");
@@ -108,7 +109,7 @@ export default function LogsPage() {
     fetchLogs();
     const interval = setInterval(fetchLogs, 10000);
     return () => clearInterval(interval);
-  }, [page, selectedCategory, selectedType, selectedMonth]);
+  }, [page, selectedCategory, selectedType, selectedMonth, selectedJobId]);
 
   const fetchLogs = async () => {
     try {
@@ -118,6 +119,7 @@ export default function LogsPage() {
         category: selectedCategory.toLowerCase(),
         type: selectedType,
         month: selectedMonth,
+        job_id: selectedJobId,
       });
 
       const response = await fetch(`${baseUrl}/jobs/recent?${params}`);
@@ -256,6 +258,17 @@ export default function LogsPage() {
             setPage(1);
           }}
           className="border-2 border-black p-2 text-[10px] font-black uppercase outline-none focus:bg-black focus:text-white transition-all w-48"
+        />
+        {/* INPUT JOB ID BARU */}
+        <input
+          type="text"
+          placeholder="Search Job ID..."
+          value={selectedJobId}
+          onChange={(e) => {
+            setSelectedJobId(e.target.value);
+            setPage(1);
+          }}
+          className="border-2 border-black p-2 text-[10px] font-black uppercase outline-none focus:bg-black focus:text-white transition-all w-64"
         />
 
         <button

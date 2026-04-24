@@ -25,7 +25,7 @@ export default function ExportUniversalModalv2({
   const hasDestination = ["ic", "mt", "cm", "ms", "dt", "rt"].includes(
     currentType,
   );
-  const hasCargo = ["mt", "ms"].includes(currentType);
+  const hasCargo = ["mt", "ms", "cm"].includes(currentType);
   const hasDateRange =
     currentType !== "mn" &&
     currentType !== "mr" &&
@@ -33,6 +33,7 @@ export default function ExportUniversalModalv2({
     currentType !== "rf";
   const hasSTT =
     currentType !== "mn" &&
+    currentType !== "mt" &&
     currentType !== "mr" &&
     currentType !== "rt" &&
     currentType !== "rf";
@@ -77,6 +78,8 @@ export default function ExportUniversalModalv2({
     typeRate: "",
     districtName: "",
     remarksList: "",
+    shipmentList: "",
+    externalList: "",
   });
   const [userInfo, setUserInfo] = useState<{
     name: string;
@@ -121,6 +124,8 @@ export default function ExportUniversalModalv2({
         typeRate: "",
         districtName: "",
         remarksList: "",
+        shipmentList: "",
+        externalList: "",
       });
     }
   }, [currentType, isOpen, masterColumns, lockedColumns]);
@@ -163,8 +168,8 @@ export default function ExportUniversalModalv2({
       if (filters.mitraCodeList)
         params.append("mitra_code", cleanInput(filters.mitraCodeList));
       if (filters.rute) params.append("rute", filters.rute.trim());
-      if (filters.truck_rate)
-        params.append("truck_rate", filters.truck_rate.trim());
+      // if (filters.truck_rate)
+      //   params.append("truck_rate", filters.truck_rate.trim());
     } else if (isRF) {
       if (filters.month) params.append("month", filters.month);
       if (filters.districtName)
@@ -208,6 +213,10 @@ export default function ExportUniversalModalv2({
           "customer_code_list",
           cleanInput(filters.customerCodeList),
         );
+      if (filters.shipmentList)
+        params.append("shipment_id_list", cleanInput(filters.shipmentList));
+      if (filters.externalList)
+        params.append("external_id_list", cleanInput(filters.externalList));
       if (filters.awbList)
         params.append("awb_list", cleanInput(filters.awbList));
     }
@@ -236,6 +245,8 @@ export default function ExportUniversalModalv2({
 
     // --- EKSEKUSI API CALL ---
     try {
+      console.log("Params to send:", params.toString());
+      console.log("FINAL PARAMS:", params.toString());
       const response = await fetch(
         `${baseUrl}/exportv2/master/${currentType}/csv?${params.toString()}`,
       );
@@ -328,7 +339,7 @@ export default function ExportUniversalModalv2({
                   />
                 </div>
 
-                <div className="space-y-1">
+                {/* <div className="space-y-1">
                   <label className="text-[9px] font-black uppercase text-gray-400">
                     Truck Rate
                   </label>
@@ -341,7 +352,7 @@ export default function ExportUniversalModalv2({
                     }
                     className="w-full h-10 bg-gray-100 p-3 rounded-lg text-[10px] font-mono outline-none focus:ring-1 focus:ring-black resize-none"
                   />
-                </div>
+                </div> */}
               </>
             )}
             {hasMonthFilter && (
@@ -444,7 +455,7 @@ export default function ExportUniversalModalv2({
                 </div>
               </>
             )}
-            {isBC && (
+            {/* {isBC && (
               <div className="space-y-1">
                 <label className="text-[9px] font-black uppercase text-gray-400">
                   Chargeable Weight
@@ -459,7 +470,7 @@ export default function ExportUniversalModalv2({
                   className="w-full bg-gray-100 p-2 rounded-lg text-xs font-bold outline-none"
                 />
               </div>
-            )}
+            )} */}
             {/* CONDITIONAL CLIENT & CUSTOMER CODE FOR IC ONLY */}
             {currentType === "ic" && (
               <>
@@ -514,6 +525,33 @@ export default function ExportUniversalModalv2({
                     value={filters.remarksList}
                     onChange={(e) =>
                       setFilters({ ...filters, remarksList: e.target.value })
+                    }
+                    className="w-full h-16 bg-gray-100 p-3 rounded-lg text-[10px] font-mono outline-none focus:ring-1 focus:ring-black resize-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase text-gray-400">
+                    Shipment ID
+                  </label>
+                  <textarea
+                    placeholder="Paste Shipment IDs..."
+                    value={filters.shipmentList}
+                    onChange={(e) =>
+                      setFilters({ ...filters, shipmentList: e.target.value })
+                    }
+                    className="w-full h-16 bg-gray-100 p-3 rounded-lg text-[10px] font-mono outline-none focus:ring-1 focus:ring-black resize-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase text-gray-400">
+                    External ID
+                  </label>
+                  <textarea
+                    placeholder="Paste External IDs..."
+                    value={filters.externalList}
+                    onChange={(e) =>
+                      setFilters({ ...filters, externalList: e.target.value })
                     }
                     className="w-full h-16 bg-gray-100 p-3 rounded-lg text-[10px] font-mono outline-none focus:ring-1 focus:ring-black resize-none"
                   />

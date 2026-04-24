@@ -71,6 +71,8 @@ export const MASTER_COLUMNS_MAP: Record<string, string[]> = {
     "Client Category",
     "PublishRateFeeFixed",
     "Month", // Tambahan untuk filter internal
+    "Isodate",
+    "Master Job Id",
   ],
   ls: [
     "STT No",
@@ -82,6 +84,8 @@ export const MASTER_COLUMNS_MAP: Record<string, string[]> = {
     "STT Updated Actor Name",
     "STT Updated Actor Role",
     "Source",
+    "Isodate",
+    "Master Job Id",
   ],
   dt: [
     "STT No",
@@ -111,6 +115,8 @@ export const MASTER_COLUMNS_MAP: Record<string, string[]> = {
     "Delivery Fee",
     "Bonus/Pinalti",
     "Total Bonus / Pinalti",
+    "Isodate",
+    "Master Job Id",
   ],
   mt: [
     "Cargo ID",
@@ -160,6 +166,8 @@ export const MASTER_COLUMNS_MAP: Record<string, string[]> = {
     "Cargo ActualHeight Dimension",
     "Cargo Nog",
     "Berat Final",
+    "Isodate",
+    "Master Job Id",
   ],
   cm: [
     "STT No",
@@ -190,6 +198,8 @@ export const MASTER_COLUMNS_MAP: Record<string, string[]> = {
     "Vendor ID",
     "Vendor Name",
     "Product",
+    "Isodate",
+    "Master Job Id",
   ],
   ms: [
     "Cargo No",
@@ -211,6 +221,8 @@ export const MASTER_COLUMNS_MAP: Record<string, string[]> = {
     "CONS number",
     "Type",
     "T",
+    "Isodate",
+    "Master Job Id",
   ],
   mn: [
     "Mitra Code Genesis",
@@ -220,14 +232,23 @@ export const MASTER_COLUMNS_MAP: Record<string, string[]> = {
     "3LC",
     "City",
     "Month",
+    "Master Job Id",
   ],
-  mr: ["Product Route", "route_hub_cost", "route_transport", "Month"],
+  mr: [
+    "Product Route",
+    "route_hub_cost",
+    "route_transport",
+    "Month",
+    "Master Job Id",
+  ],
   bc: [
     "STT ID",
     "Stt Date",
     "Stt Chargeable Weight",
     "Invoice Number",
     "Invoice Status",
+    "Isodate",
+    "Master Job Id",
   ],
   rt: [
     "Mitra Code Genesis / Vendor Name",
@@ -237,6 +258,7 @@ export const MASTER_COLUMNS_MAP: Record<string, string[]> = {
     "Truck Rate",
     "TLC",
     "Month",
+    "Master Job Id",
   ],
   rf: [
     "District Name",
@@ -248,6 +270,7 @@ export const MASTER_COLUMNS_MAP: Record<string, string[]> = {
     "Month",
     "Valid From",
     "valid Until",
+    "Master Job Id",
   ],
 };
 
