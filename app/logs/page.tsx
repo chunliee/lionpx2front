@@ -251,7 +251,7 @@ export default function LogsPage() {
 
         <input
           type="text"
-          placeholder="Periode (YYYY-MM)"
+          placeholder="Period (YYYY-MM)"
           value={selectedMonth}
           onChange={(e) => {
             setSelectedMonth(e.target.value);
@@ -311,6 +311,9 @@ export default function LogsPage() {
               <th className="text-left py-4 px-2 text-[10px] font-black uppercase">
                 Execution Time
               </th>
+              <th className="text-left py-4 px-2 text-[10px] font-black uppercase">
+                Master Job ID
+              </th>
               <th className="text-center py-4 px-2 text-[10px] font-black uppercase">
                 Action
               </th>
@@ -329,9 +332,9 @@ export default function LogsPage() {
                       <span className="text-sm font-black uppercase tracking-tight">
                         {log.type.replace("_", " ")}
                       </span>
-                      <span className="text-[9px] text-gray-400 font-mono mt-0.5">
+                      {/* <span className="text-[9px] text-gray-400 font-mono mt-0.5">
                         ID: {log._id}
-                      </span>
+                      </span> */}
                       {fileName && (
                         <div className="mt-2 flex items-center gap-1.5">
                           <span className="bg-gray-100 text-gray-600 px-2 py-0.5 border border-gray-200 text-[9px] font-bold rounded uppercase tracking-wider truncate max-w-[200px]">
@@ -428,6 +431,17 @@ export default function LogsPage() {
                           <span>{formatDateTime(log.finished_at)}</span>
                         </div>
                       )}
+                    </div>
+                  </td>
+                  <td className="py-6 px-2">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs font-black">{log._id}</span>
+                      {/* <div className="w-24 h-1 bg-gray-100 overflow-hidden">
+                        <div
+                          className="h-full bg-black transition-all"
+                          style={{ width: `${log.percentage || 0}%` }}
+                        />
+                      </div> */}
                     </div>
                   </td>
 

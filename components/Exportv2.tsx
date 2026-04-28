@@ -19,7 +19,8 @@ export default function ExportUniversalModalv2({
 }: ExportUniversalModalProps) {
   const currentType = type || "ic";
   const [isGenerating, setIsGenerating] = useState(false);
-
+  //file
+  const [csvFile, setCsvFile] = useState<File | null>(null);
   // LOGIC TAMPILAN FILTER BERDASARKAN TIPE MASTER
   const hasOrigin = ["ic", "mt", "cm", "ms", "rt"].includes(currentType);
   const hasDestination = ["ic", "mt", "cm", "ms", "dt", "rt"].includes(
@@ -134,147 +135,118 @@ export default function ExportUniversalModalv2({
 
   const handleGenerateJob = async () => {
     const baseUrl = `http://${window.location.hostname}:8080`;
+    setIsGenerating(true);
 
-    // Helper Pembersihan Data
-    const cleanInput = (raw: string) =>
-      raw
-        .split(/[\n, \t\r]+/)
-        .map((s) => s.trim())
-        .filter((s) => s && s.length > 0)
-        .join(",");
-
-    const cleanInput2 = (raw: string) =>
-      raw
-        .split(/\n+/)
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0)
-        .join("|");
-
-    const params = new URLSearchParams({
-      columns: selected.join("|"),
-      user: userInfo?.name || "System User",
-    });
-
-    // --- LOGIC FILTER (Lengkap sesuai kodemu) ---
-
-    if (isBC) {
-      if (filters.sttList) params.append("stt_id", cleanInput(filters.sttList));
-      if (filters.chargeableWeight)
-        params.append("chargeable_weight", filters.chargeableWeight);
-    } else if (isRT) {
-      if (filters.tlcList)
-        params.append("3lc_list", cleanInput(filters.tlcList));
-      if (filters.month) params.append("month", filters.month);
-      if (filters.mitraCodeList)
-        params.append("mitra_code", cleanInput(filters.mitraCodeList));
-      if (filters.rute) params.append("rute", filters.rute.trim());
-      // if (filters.truck_rate)
-      //   params.append("truck_rate", filters.truck_rate.trim());
-    } else if (isRF) {
-      if (filters.month) params.append("month", filters.month);
-      if (filters.districtName)
-        params.append("district_name", cleanInput2(filters.districtName));
-      if (filters.typeRate) params.append("type_rate", filters.typeRate);
-    } else {
-      // Standard STT list untuk tipe lain
-      if (hasSTT && filters.sttList)
-        params.append("stt_list", cleanInput(filters.sttList));
-    }
-
-    // Filter Tanggal
-    if (hasDateRange) {
-      if (filters.startDate) params.append("start_date", filters.startDate);
-      if (filters.endDate) params.append("end_date", filters.endDate);
-    }
-
-    // Filter Master MR
-    if (currentType === "mr") {
-      if (filters.month) params.append("month", filters.month);
-      if (filters.productRouteList) {
-        params.append(
-          "product_route_list",
-          cleanInput(filters.productRouteList),
-        );
-      }
-    }
-
-    // Re-append Filter Standar (Sesuai kodemu yang ada double check)
-    if (filters.startDate) params.append("start_date", filters.startDate);
-    if (filters.endDate) params.append("end_date", filters.endDate);
-
-    // Append Filter khusus IC
-    if (currentType === "ic") {
-      if (filters.remarksList)
-        params.append("remarks_list", cleanInput(filters.remarksList));
-      if (filters.clientCodeList)
-        params.append("client_code_list", cleanInput(filters.clientCodeList));
-      if (filters.customerCodeList)
-        params.append(
-          "customer_code_list",
-          cleanInput(filters.customerCodeList),
-        );
-      if (filters.shipmentList)
-        params.append("shipment_id_list", cleanInput(filters.shipmentList));
-      if (filters.externalList)
-        params.append("external_id_list", cleanInput(filters.externalList));
-      if (filters.awbList)
-        params.append("awb_list", cleanInput(filters.awbList));
-    }
-
-    // Append Filter khusus MN
-    if (currentType === "mn") {
-      if (filters.mitraCodeList)
-        params.append("mitra_code_list", cleanInput(filters.mitraCodeList));
-      if (filters.tlcList)
-        params.append("3lc_list", cleanInput(filters.tlcList));
-      if (filters.kategoriList)
-        params.append("kategori_list", cleanInput(filters.kategoriList));
-    }
-
-    // Append Filter Spesifik Cargo & Origin/Destination
-    if (hasCargo && filters.cargoList)
-      params.append("cargo_list", cleanInput(filters.cargoList));
-    if (hasOrigin && filters.originList)
-      params.append("origin_list", cleanInput(filters.originList));
-    if (hasDestination && filters.destinationList)
-      params.append("destination_list", cleanInput(filters.destinationList));
-
-    // Khusus Master CM
-    if (currentType === "cm" && filters.date)
-      params.append("date", filters.date);
-
-    // --- EKSEKUSI API CALL ---
     try {
-      console.log("Params to send:", params.toString());
-      console.log("FINAL PARAMS:", params.toString());
-      const response = await fetch(
-        `${baseUrl}/exportv2/master/${currentType}/csv?${params.toString()}`,
-      );
+      const cleanInput = (raw: string) =>
+        raw
+          .split(/[\n, \t\r]+/)
+          .map((s) => s.trim())
+          .filter((s) => s)
+          .join(",");
 
-      if (!response.ok) {
-        throw new Error(`Server error: ${response.statusText}`);
+      const formData = new FormData();
+
+      // Data Dasar & Filter (Sama seperti sebelumnya)
+      formData.append("columns", selected.join("|"));
+      formData.append("user", userInfo?.name || "System User");
+      formData.append("category", currentType);
+
+      if (hasDateRange) {
+        if (filters.startDate) formData.append("start_date", filters.startDate);
+        if (filters.endDate) formData.append("end_date", filters.endDate);
       }
 
-      const result = await response.json();
+      // Filter Textarea
+      const filterFields: Record<string, string> = {
+        stt_list: filters.sttList,
+        origin_list: filters.originList,
+        destination_list: filters.destinationList,
+        client_code_list: filters.clientCodeList,
+        customer_code_list: filters.customerCodeList,
+        cargo_list: filters.cargoList,
+        awb_list: filters.awbList,
+        remarks_list: filters.remarksList,
+        shipment_id_list: filters.shipmentList,
+        external_id_list: filters.externalList,
+      };
 
-      // PERBAIKAN DI SINI:
-      // Ambil job_id (dari backend Go kamu) atau _id (sebagai fallback)
+      Object.entries(filterFields).forEach(([key, value]) => {
+        if (value) formData.append(key, cleanInput(value));
+      });
+
+      // Filter Tambahan
+      if (filters.rute) formData.append("rute", filters.rute);
+      if (filters.month) formData.append("month", filters.month);
+      if (filters.districtName)
+        formData.append("district_name", filters.districtName);
+      if (filters.typeRate) formData.append("type_rate", filters.typeRate);
+
+      let endpoint = `${baseUrl}/exportv2/master/${currentType}/csv`;
+      if (csvFile) {
+        formData.append("file", csvFile);
+        endpoint = `${baseUrl}/exportv2/master/${currentType}/upload-csv`;
+        if (hasCargo) {
+          formData.append("is_cargo_upload", "true");
+        }
+      }
+
+      // --- LOGIC BARU DENGAN TIMEOUT & PROGRESS ---
+      const uploadWithProgress = () => {
+        return new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", endpoint);
+
+          // TIMEOUT: Set ke 10 menit (600.000 ms)
+          xhr.timeout = 600000;
+
+          // EVENT: Cek progress upload
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              const percent = Math.round((event.loaded / event.total) * 100);
+              console.log(`Upload Progress: ${percent}%`);
+              // Lo bisa simpan 'percent' ke state baru buat ditampilin di UI
+            }
+          };
+
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve(JSON.parse(xhr.responseText));
+            } else {
+              reject(new Error(`Upload failed with status ${xhr.status}`));
+            }
+          };
+
+          xhr.ontimeout = () =>
+            reject(
+              new Error(
+                "Request Timeout: File terlalu besar atau server lambat.",
+              ),
+            );
+          xhr.onerror = () => reject(new Error("Network Error."));
+
+          xhr.send(formData);
+        });
+      };
+
+      const result: any = await uploadWithProgress();
       const finalJobId = result.job_id || result._id;
 
       if (finalJobId) {
-        // Teruskan ke function onSuccess di Page utama
-        onSuccess(finalJobId, `${currentType.toUpperCase()} Export`);
+        onSuccess(
+          finalJobId,
+          `${currentType.toUpperCase()} Export ${csvFile ? "(via CSV)" : ""}`,
+        );
+        setCsvFile(null);
         onClose();
-      } else {
-        console.error("Response dari server:", result);
-        alert("Gagal: ID Pekerjaan tidak ditemukan dalam respon server.");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Generate Export Error:", error);
-      alert("Terjadi kesalahan saat menghubungi server.");
+      alert(error.message || "Terjadi kesalahan saat menghubungi server.");
+    } finally {
+      setIsGenerating(false);
     }
   };
-
   const filteredAvailable = available.filter((col) =>
     col.toLowerCase().includes(search.toLowerCase()),
   );
@@ -534,7 +506,7 @@ export default function ExportUniversalModalv2({
                     Shipment ID
                   </label>
                   <textarea
-                    placeholder="Paste Shipment IDs..."
+                    placeholder=""
                     value={filters.shipmentList}
                     onChange={(e) =>
                       setFilters({ ...filters, shipmentList: e.target.value })
@@ -548,7 +520,7 @@ export default function ExportUniversalModalv2({
                     External ID
                   </label>
                   <textarea
-                    placeholder="Paste External IDs..."
+                    placeholder=" "
                     value={filters.externalList}
                     onChange={(e) =>
                       setFilters({ ...filters, externalList: e.target.value })
@@ -642,6 +614,7 @@ export default function ExportUniversalModalv2({
             )}
 
             {/* STT LIST - Sekarang kondisional */}
+            {/* STT LIST (Textarea lo yang lama) */}
             {hasSTT && (
               <div className="space-y-1">
                 <label className="text-[9px] font-black uppercase text-gray-400">
@@ -672,12 +645,59 @@ export default function ExportUniversalModalv2({
                 />
               </div>
             )}
+            {/* SECTION CSV UPLOAD */}
+            {(hasSTT || hasCargo) && (
+              <div className="mt-4 p-3 bg-[#D71920] border border-[#A11217] rounded-xl shadow-md">
+                <label className="text-[10px] font-black uppercase text-white flex   items-center mb-2">
+                  {/* Label dinamis berdasarkan tipe */}
+                  <span>
+                    {(() => {
+                      // MS & CM punya Cargo No DAN STT
+                      if (["ms", "cm"].includes(currentType))
+                        return "CARGO/STT";
+
+                      // MT cuma Cargo No
+                      if (currentType === "mt") return "CARGO";
+
+                      // IC punya 3 identitas
+                      if (currentType === "ic") return "STT/AWB/SHIPMENT";
+
+                      // LS, DT, BC cuma STT
+                      if (["ls", "dt", "bc"].includes(currentType))
+                        return "STT";
+
+                      return "UPLOAD CSV FILE";
+                    })()}
+                  </span>
+                  {csvFile && (
+                    <span className="truncate max-w-[100px] opacity-80">
+                      {csvFile.name}
+                    </span>
+                  )}
+                </label>
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+                  className="w-full text-[10px] text-white file:mr-3 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-bold file:bg-white file:text-[#D71920] cursor-pointer"
+                />
+                {csvFile && (
+                  <button
+                    onClick={() => setCsvFile(null)}
+                    className="mt-2 text-[9px] text-white underline block hover:text-gray-200"
+                  >
+                    Remove upload
+                  </button>
+                )}
+              </div>
+            )}
 
             <button
               onClick={handleGenerateJob}
-              className="mt-auto bg-black text-white py-4 rounded-xl font-black uppercase text-xs hover:bg-gray-800 transition-all shadow-lg active:scale-95"
+              disabled={isGenerating}
+              className="mt-auto bg-black text-white py-4 rounded-xl font-black uppercase text-xs hover:bg-gray-800 transition-all shadow-lg active:scale-95 disabled:bg-gray-400"
             >
-              Generate
+              {isGenerating ? "Processing..." : "Generate"}
             </button>
           </div>
 

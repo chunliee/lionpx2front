@@ -8,18 +8,25 @@ import lpLogo from "../public/assets/lpred.png";
 
 // Daftar user "palsu" - sesuaikan dengan kebutuhan internal
 const VALID_USERS = [
-  {
-    id: "su",
-    username: "su",
-    password: "123",
-    name: "Farhan",
-    role: "admin",
-  },
+  // {
+  //   id: "su",
+  //   username: "su",
+  //   password: "123",
+  //   name: "Farhan",
+  //   role: "admin",
+  // },
   {
     id: "sa",
     username: "sa",
     password: "123",
     name: "supauser",
+    role: "admin",
+  },
+  {
+    id: "260284",
+    username: "260284",
+    password: "123",
+    name: "Farhan",
     role: "admin",
   },
   {
@@ -41,7 +48,7 @@ const VALID_USERS = [
     username: "56073384",
     password: "384",
     name: "Mona",
-    role: "subadmin",
+    role: "admin",
   },
   {
     id: "192391",
@@ -62,7 +69,7 @@ const VALID_USERS = [
     username: "251677",
     password: "517",
     name: "Nabila",
-    role: "role3",
+    role: "admin",
   },
   {
     id: "56127978",
@@ -110,6 +117,8 @@ export default function LoginPage() {
 
       // Gunakan href agar seluruh state browser ter-refresh
       window.location.href = "/";
+    } else {
+      setError("wrong credentials");
     }
   };
 
@@ -144,7 +153,11 @@ export default function LoginPage() {
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="mt-2 block w-full rounded-xl bg-gray-100 py-3 px-4 font-bold outline-none"
+                className={`mt-2 block w-full rounded-xl py-3 px-4 font-bold outline-none border-4 transition-all ${
+                  error
+                    ? "border-red-600 bg-red-50 animate-pulse"
+                    : "border-transparent bg-gray-100"
+                }`}
               />
             </div>
 
@@ -158,15 +171,19 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-2 block w-full rounded-xl bg-gray-100 py-3 px-4 font-bold outline-none"
+                className={`mt-2 block w-full rounded-xl py-3 px-4 font-bold outline-none border-4 transition-all ${
+                  error
+                    ? "border-red-600 bg-red-50 animate-pulse"
+                    : "border-transparent bg-gray-100"
+                }`}
               />
             </div>
 
-            {error && (
+            {/* {error && (
               <div className="bg-red-50 border border-red-200 text-red-600 text-[10px] font-bold p-3 rounded-xl text-center">
                 {error}
               </div>
-            )}
+            )} */}
 
             <button
               type="submit"

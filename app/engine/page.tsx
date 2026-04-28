@@ -47,6 +47,7 @@ interface ActiveJob {
 export default function ReportPage() {
   const [activeJobs, setActiveJobs] = useState<ActiveJob[]>([]);
   const [isQueueOpen, setIsQueueOpen] = useState(true);
+  const [searchTerm, setSearchTerm] = useState<string>("");
   const [userInfo, setUserInfo] = useState<{
     name: string;
     role: string;
@@ -90,8 +91,13 @@ export default function ReportPage() {
     const access = roleAccess[userRole];
     if (!access) return false;
 
-    // Jika admin, izinkan semua. Jika role lain, cek apakah item ada di list.
-    return access.includes("all") || access.includes(item.toLowerCase());
+    const matchesRole =
+      access.includes("all") || access.includes(item.toLowerCase());
+    const matchesSearch = labelMapping[item]
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+
+    return matchesRole && matchesSearch;
   });
 
   // const router = useRouter();
@@ -231,16 +237,38 @@ export default function ReportPage() {
               Data Processing Terminal
             </p>
           </div>
-          <div className="flex flex-col items-end gap-1">
-            <span className="text-[10px] font-bold text-gray-500 uppercase">
-              Periode
-            </span>
-            <input
-              type="month"
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="border-2 border-black px-4 py-1.5 text-sm font-bold outline-none rounded-xl"
-            />
+
+          <div className="flex items-end gap-3">
+            {/* SEARCH BAR */}
+            <div className="flex flex-col items-end gap-1">
+              <span className="text-[10px] font-bold text-gray-500 uppercase">
+                Search Engine
+              </span>
+              <div className="relative">
+                <i className="ri-search-line absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                <input
+                  type="text"
+                  placeholder=""
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="border-2 border-black pl-10 pr-4 py-1.5 text-sm font-bold outline-none 
+                   w-48 focus:ring-2 focus:ring-blue-500 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* PERIODE */}
+            <div className="flex flex-col items-end gap-1">
+              <span className="text-[10px] font-bold text-gray-500 uppercase">
+                Period
+              </span>
+              <input
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="border-2 border-black px-4 py-1.5 text-sm font-bold outline-none cursor-pointer"
+              />
+            </div>
           </div>
         </header>
 

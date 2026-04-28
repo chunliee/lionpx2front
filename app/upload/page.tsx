@@ -134,6 +134,7 @@ export default function UploadPage() {
   // }, [router]);
   // Di dalam function UploadPage()
   const [userRole, setUserRole] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
   useEffect(() => {
     const auth = Cookies.get("user_auth");
     if (auth) {
@@ -632,18 +633,40 @@ export default function UploadPage() {
               Insert Master Data
             </p>
           </div>
-          <div className="flex flex-col items-end gap-1">
-            <span className="text-[10px] font-bold text-gray-500 uppercase">
-              Periode
-            </span>
-            <input
-              type="month"
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className={`border px-4 py-1.5 text-sm font-bold outline-none transition-all ${
-                isMonthEmpty ? "border-red-500 animate-pulse" : "border-black"
-              }`}
-            />
+
+          {/* CONTAINER PENCARIAN & PERIODE */}
+          <div className="flex items-end gap-4">
+            {/* SEARCH BOX */}
+            <div className="flex flex-col items-start gap-1">
+              <span className="text-[10px] font-bold text-gray-500 uppercase">
+                Search
+              </span>
+              <div className="relative">
+                <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                <input
+                  type="text"
+                  placeholder=""
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="border border-black px-4 py-1.5 pl-9 text-sm font-bold outline-none w-64 focus:ring-2 focus:ring-gray-200 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* PERIODE BOX */}
+            <div className="flex flex-col items-start gap-1">
+              <span className="text-[10px] font-bold text-gray-500 uppercase">
+                Period
+              </span>
+              <input
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className={`border px-4 py-1.5 text-sm font-bold outline-none transition-all ${
+                  isMonthEmpty ? "border-red-500 animate-pulse" : "border-black"
+                }`}
+              />
+            </div>
           </div>
         </header>
 
@@ -653,7 +676,18 @@ export default function UploadPage() {
           {/* Ganti bagian dataContent[activeTab].map((item) => ... dengan ini */}
 
           {dataContent[activeTab]
-            .filter((item) => isAllowed(activeTab, item)) // Filter berdasarkan role di sini
+            .filter((item) => {
+              // 1. Filter berdasarkan Role
+              const allowed = isAllowed(activeTab, item);
+
+              // 2. Filter berdasarkan Search Query (mencari di label atau key)
+              const label = labelMapping[activeTab]?.[item] || item;
+              const matchesSearch = label
+                .toLowerCase()
+                .includes(searchQuery.toLowerCase());
+
+              return allowed && matchesSearch;
+            })
             .map((item) => (
               <div
                 key={item}
