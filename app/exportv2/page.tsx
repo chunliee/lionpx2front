@@ -134,18 +134,20 @@ export default function ExportICPage() {
               placeholder=""
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-100  py-2 pl-9 pr-4 text-xs font-bold outline-none focus:border-black focus:bg-white transition-all"
+              className="w-full bg-gray-50 border border-black  py-2 pl-9 pr-4 text-xs font-bold outline-none focus:border-black focus:bg-white transition-all"
             />
           </div>
         </div>
-
-        <nav className="flex-1 overflow-y-auto px-4 flex flex-col gap-2 scrollbar-hide">
+        <nav className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-2 scrollbar-hide mb-20">
+          {/* Tambahkan padding bottom besar (mb-20 atau pb-10) 
+      agar item terakhir tidak tertutup elemen bawah */}
           {filteredMenu.length > 0 ? (
             filteredMenu.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setActiveModal(item.id)}
-                className={`text-left text-lg font-bold pl-4 transition-all py-2 rounded-lg ${
+                className={`text-left text-lg font-bold pl-4 transition-all py-2 rounded-lg shrink-0 ${
+                  // Tambahkan shrink-0
                   activeModal === item.id
                     ? "text-black border-l-4 border-black bg-gray-50"
                     : "text-gray-400 hover:text-black hover:bg-gray-50 border-l-4 border-transparent"

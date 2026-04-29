@@ -44,6 +44,15 @@ export default function ExportUniversalModalv2({
   const isBC = currentType === "bc";
   const isRT = currentType === "rt";
   const isRF = currentType === "rf";
+  const TEMPLATE_MAP: Record<string, string> = {
+    ic: "/assets/raw_stt_awb_shipment.csv",
+    mt: "/assets/raw_cargo.csv",
+    ms: "/assets/raw_cargo_stt.csv",
+    cm: "/assets/raw_cargo_stt.csv",
+    ls: "/assets/raw_stt.csv",
+    dt: "/assets/raw_stt.csv",
+    bc: "/assets/raw_stt.csv",
+  };
 
   const masterColumns = useMemo(
     () => MASTER_COLUMNS_MAP[currentType] || [],
@@ -648,50 +657,63 @@ export default function ExportUniversalModalv2({
             {/* SECTION CSV UPLOAD */}
             {(hasSTT || hasCargo) && (
               <div className="mt-4 p-3 bg-[#D71920] border border-[#A11217] rounded-xl shadow-md">
-                <label className="text-[10px] font-black uppercase text-white flex   items-center mb-2">
-                  {/* Label dinamis berdasarkan tipe */}
+                <label className="text-[10px] font-black uppercase text-white flex items-center mb-2">
                   <span>
                     {(() => {
-                      // MS & CM punya Cargo No DAN STT
                       if (["ms", "cm"].includes(currentType))
                         return "CARGO/STT";
-
-                      // MT cuma Cargo No
                       if (currentType === "mt") return "CARGO";
-
-                      // IC punya 3 identitas
                       if (currentType === "ic") return "STT/AWB/SHIPMENT";
-
-                      // LS, DT, BC cuma STT
                       if (["ls", "dt", "bc"].includes(currentType))
                         return "STT";
-
                       return "UPLOAD CSV FILE";
                     })()}
                   </span>
-                  {csvFile && (
-                    <span className="truncate max-w-[100px] opacity-80">
-                      {csvFile.name}
-                    </span>
-                  )}
                 </label>
+
                 <input
                   type="file"
                   accept=".csv"
                   onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
                   className="w-full text-[10px] text-white file:mr-3 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-bold file:bg-white file:text-[#D71920] cursor-pointer"
                 />
-                {csvFile && (
-                  <button
-                    onClick={() => setCsvFile(null)}
-                    className="mt-2 text-[9px] text-white underline block hover:text-gray-200"
+
+                {/* TOMBOL DOWNLOAD TEMPLATE (BARU) */}
+                <div className="mt-3 pt-2 border-t border-white/20 flex flex-col gap-1">
+                  <a
+                    href={TEMPLATE_MAP[currentType] || "/assets/raw_stt.csv"}
+                    download
+                    className="text-[9px] text-white flex items-center gap-1 hover:underline opacity-90 font-bold"
                   >
-                    Remove upload
-                  </button>
-                )}
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="10"
+                      height="10"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    Download Template Raw
+                  </a>
+
+                  {csvFile && (
+                    <button
+                      onClick={() => setCsvFile(null)}
+                      className="text-[9px] text-yellow-300 underline text-left hover:text-white transition-colors"
+                    >
+                      Remove upload ({csvFile.name})
+                    </button>
+                  )}
+                </div>
               </div>
             )}
-
             <button
               onClick={handleGenerateJob}
               disabled={isGenerating}
