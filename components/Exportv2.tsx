@@ -62,6 +62,30 @@ export default function ExportUniversalModalv2({
     () => LOCKED_MAP[currentType] || ["STT No", "Cargo No"],
     [currentType],
   );
+  // Di dalam komponen ExportUniversalModalv2
+
+  // 1. Definisikan opsi kategori
+  const KATEGORI_OPTIONS = [
+    "CBP",
+    "CORPORATE",
+    "E-COMMERCE",
+    "PROJECT CORP",
+    "SPX",
+    "TESTING",
+    "CUST APP",
+    "POS",
+  ];
+
+  // 2. Handler untuk toggle checklist
+  const handleKategoriToggle = (item: string) => {
+    setFilters((prev) => {
+      const current = prev.kategoriChecklist;
+      const next = current.includes(item)
+        ? current.filter((i) => i !== item)
+        : [...current, item];
+      return { ...filters, kategoriChecklist: next };
+    });
+  };
 
   const [available, setAvailable] = useState<string[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
@@ -90,6 +114,7 @@ export default function ExportUniversalModalv2({
     remarksList: "",
     shipmentList: "",
     externalList: "",
+    kategoriChecklist: [] as string[],
   });
   const [userInfo, setUserInfo] = useState<{
     name: string;
@@ -136,6 +161,7 @@ export default function ExportUniversalModalv2({
         remarksList: "",
         shipmentList: "",
         externalList: "",
+        kategoriChecklist: [],
       });
     }
   }, [currentType, isOpen, masterColumns, lockedColumns]);
@@ -183,9 +209,12 @@ export default function ExportUniversalModalv2({
       Object.entries(filterFields).forEach(([key, value]) => {
         if (value) formData.append(key, cleanInput(value));
       });
-
+      if (filters.kategoriChecklist.length > 0) {
+        formData.append("kategori_list", filters.kategoriChecklist.join(","));
+      }
       // Filter Tambahan
       if (filters.rute) formData.append("rute", filters.rute);
+
       if (filters.month) formData.append("month", filters.month);
       if (filters.districtName)
         formData.append("district_name", filters.districtName);
@@ -455,6 +484,46 @@ export default function ExportUniversalModalv2({
             {/* CONDITIONAL CLIENT & CUSTOMER CODE FOR IC ONLY */}
             {currentType === "ic" && (
               <>
+                {/* KATEGORI CHECKLIST - Ditambahkan di sini */}
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase text-gray-400">
+                    Kategori
+                  </label>
+                  <div className="grid grid-cols-2 gap-1 p-2 bg-gray-100 rounded-lg max-h-32 overflow-y-auto scrollbar-hide border border-transparent focus-within:border-black">
+                    {KATEGORI_OPTIONS.map((opt) => (
+                      <label
+                        key={opt}
+                        className="flex items-center gap-2 cursor-pointer hover:bg-gray-200 p-1 rounded transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          className="w-3 h-3 accent-black"
+                          checked={filters.kategoriChecklist.includes(opt)}
+                          onChange={() => handleKategoriToggle(opt)}
+                        />
+                        <span className="text-[9px] font-bold text-gray-700 uppercase leading-none">
+                          {opt}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  {/* Indicator jika ada yang terpilih */}
+                  {filters.kategoriChecklist.length > 0 && (
+                    <div className="flex justify-between items-center px-1">
+                      <span className="text-[8px] font-black text-black">
+                        {filters.kategoriChecklist.length} SELECTED
+                      </span>
+                      <button
+                        onClick={() =>
+                          setFilters({ ...filters, kategoriChecklist: [] })
+                        }
+                        className="text-[8px] font-black text-red-500 hover:underline"
+                      >
+                        CLEAR
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <div className="space-y-1">
                   <label className="text-[9px] font-black uppercase text-gray-400">
                     Client Code

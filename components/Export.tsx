@@ -74,6 +74,7 @@ export default function ExportUniversalModal({
     typeRate: "",
     districtName: "",
     remarksList: "",
+    kategoriChecklist: [] as string[],
   });
 
   useEffect(() => {
@@ -103,6 +104,7 @@ export default function ExportUniversalModal({
         typeRate: "",
         districtName: "",
         remarksList: "",
+        kategoriChecklist: [],
       });
     }
   }, [currentType, isOpen, masterColumns, lockedColumns]);
@@ -193,6 +195,9 @@ export default function ExportUniversalModal({
         );
       if (filters.awbList) {
         params.append("awb_list", cleanInput(filters.awbList));
+      }
+      if (filters.kategoriList) {
+        params.append("kategori_list", cleanInput(filters.kategoriList));
       }
     }
 
@@ -448,6 +453,19 @@ export default function ExportUniversalModal({
                         ...filters,
                         customerCodeList: e.target.value,
                       })
+                    }
+                    className="w-full h-16 bg-gray-100 p-3 rounded-lg text-[10px] font-mono outline-none focus:ring-1 focus:ring-black resize-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase text-gray-400">
+                    Kategori
+                  </label>
+                  <textarea
+                    placeholder="Contoh: CBP, SPX, dll"
+                    value={filters.kategoriList}
+                    onChange={(e) =>
+                      setFilters({ ...filters, kategoriList: e.target.value })
                     }
                     className="w-full h-16 bg-gray-100 p-3 rounded-lg text-[10px] font-mono outline-none focus:ring-1 focus:ring-black resize-none"
                   />
