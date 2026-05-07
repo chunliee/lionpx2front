@@ -12,7 +12,7 @@ const fontPoppins = Poppins({
 
 // DI SINI TEMPAT LOGO NYA
 export const metadata: Metadata = {
-  title: "IC-LP Program",
+  title: "Internal Control Lion Parcel",
   icons: {
     icon: "/assets/logolag.PNG",
   },

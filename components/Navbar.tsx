@@ -52,11 +52,11 @@ const Navbar = () => {
               priority
             />
           </div>
-          <div className="logo flex items-center">
+          {/* <div className="logo flex items-center">
             <h1 className="text-2xl font-bold text-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">
               DEVELOPER SERVER
             </h1>
-          </div>
+          </div> */}
 
           <ul className="menu flex items-center gap-12">
             {/* HOME: Semua Role Bisa Lihat */}
