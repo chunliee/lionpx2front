@@ -45,7 +45,7 @@ export default function LogsPage() {
   const [selectedMonth, setSelectedMonth] = useState("");
   const [selectedJobId, setSelectedJobId] = useState("");
 
-  const baseUrl = `http://${window.location.hostname}:8080`;
+  const baseUrl = `http://${window.location.hostname}:8083`;
   const [userRole, setUserRole] = useState<string>("");
   useEffect(() => {
     const auth = Cookies.get("user_auth");

@@ -119,7 +119,7 @@ export default function ReportPage() {
 
   const [baseUrl, setBaseUrl] = useState("");
   useEffect(() => {
-    setBaseUrl(`http://${window.location.hostname}:8080`);
+    setBaseUrl(`http://${window.location.hostname}:8083`);
   }, []);
 
   // Polling Manager

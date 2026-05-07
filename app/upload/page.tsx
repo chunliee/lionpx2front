@@ -231,14 +231,29 @@ export default function UploadPage() {
   useEffect(() => {
     if (selectedMonth) {
       localStorage.setItem("selected_month", selectedMonth);
+
+      // Pecah string "2026-05" menjadi ["2026", "05"]
+      const [yearStr, monthStr] = selectedMonth.split("-");
+
+      // Konversi ke number
+      const year = Number(yearStr);
+      const month = Number(monthStr);
+
+      // new Date(year, monthIndex, 0)
+      // Kalau month dikasih angka 5 (Mei),
+      // dia bakal ngambil hari terakhir bulan ke-4 (April)?
+      // Wait, perhatikan ini:
+      const lastDayDate = new Date(year, month, 0);
+      const lastDay = lastDayDate.getDate();
+
       setValidFrom(`${selectedMonth}-01`);
-      setValidUntil(`${selectedMonth}-28`);
+      setValidUntil(`${selectedMonth}-${lastDay}`);
     }
   }, [selectedMonth]);
 
   const baseUrl =
     typeof window !== "undefined"
-      ? `http://${window.location.hostname}:8080`
+      ? `http://${window.location.hostname}:8083`
       : "";
 
   const isMonthEmpty = !selectedMonth || selectedMonth === "";

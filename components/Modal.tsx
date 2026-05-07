@@ -23,7 +23,7 @@ export default function ExportMasterModal({
   useEffect(() => {
     if (isOpen) {
       setLoading(true);
-      fetch(`http://localhost:8080/engine/columns?type=${jobType}`)
+      fetch(`http://localhost:8083/engine/columns?type=${jobType}`)
         .then((res) => res.json())
         .then((data) => {
           if (data.columns) {
@@ -52,7 +52,7 @@ export default function ExportMasterModal({
     setIsExporting(true);
     try {
       const response = await fetch(
-        "http://localhost:8080/export/custom-master",
+        "http://localhost:8083/export/custom-master",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
