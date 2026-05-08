@@ -171,7 +171,6 @@ export default function ExportUniversalModalv2({
   const handleGenerateJob = async () => {
     const baseUrl = `http://${window.location.hostname}:8083`;
     setIsGenerating(true);
-
     try {
       const cleanInput = (raw: string) =>
         raw
@@ -182,7 +181,6 @@ export default function ExportUniversalModalv2({
 
       const formData = new FormData();
 
-      // Data Dasar & Filter (Sama seperti sebelumnya)
       formData.append("columns", selected.join("|"));
       formData.append("user", userInfo?.name || "System User");
       formData.append("category", currentType);
@@ -192,7 +190,7 @@ export default function ExportUniversalModalv2({
         if (filters.endDate) formData.append("end_date", filters.endDate);
       }
 
-      // Filter Textarea
+      // Filter Textarea — semua tipe sudah masuk di sini
       const filterFields: Record<string, string> = {
         stt_list: filters.sttList,
         origin_list: filters.originList,
@@ -204,17 +202,25 @@ export default function ExportUniversalModalv2({
         remarks_list: filters.remarksList,
         shipment_id_list: filters.shipmentList,
         external_id_list: filters.externalList,
+        mitra_code_list: filters.mitraCodeList,
+        "3lc_list": filters.tlcList,
+        product_route_list: filters.productRouteList,
       };
 
       Object.entries(filterFields).forEach(([key, value]) => {
         if (value) formData.append(key, cleanInput(value));
       });
-      if (filters.kategoriChecklist.length > 0) {
-        formData.append("kategori_list", filters.kategoriChecklist.join(","));
-      }
-      // Filter Tambahan
-      if (filters.rute) formData.append("rute", filters.rute);
 
+      // Kategori — IC pakai checklist (array), tipe lain (MN, dll) pakai textarea
+      // Dipisah agar tidak double kirim ke key yang sama
+      if (currentType === "ic" && filters.kategoriChecklist.length > 0) {
+        formData.append("kategori_list", filters.kategoriChecklist.join(","));
+      } else if (currentType !== "ic" && filters.kategoriList) {
+        formData.append("kategori_list", cleanInput(filters.kategoriList));
+      }
+
+      // Filter tambahan
+      if (filters.rute) formData.append("rute", filters.rute);
       if (filters.month) formData.append("month", filters.month);
       if (filters.districtName)
         formData.append("district_name", filters.districtName);
@@ -229,21 +235,16 @@ export default function ExportUniversalModalv2({
         }
       }
 
-      // --- LOGIC BARU DENGAN TIMEOUT & PROGRESS ---
       const uploadWithProgress = () => {
         return new Promise((resolve, reject) => {
           const xhr = new XMLHttpRequest();
           xhr.open("POST", endpoint);
-
-          // TIMEOUT: Set ke 10 menit (600.000 ms)
           xhr.timeout = 600000;
 
-          // EVENT: Cek progress upload
           xhr.upload.onprogress = (event) => {
             if (event.lengthComputable) {
               const percent = Math.round((event.loaded / event.total) * 100);
               console.log(`Upload Progress: ${percent}%`);
-              // Lo bisa simpan 'percent' ke state baru buat ditampilin di UI
             }
           };
 

@@ -138,11 +138,17 @@ export default function LogsPage() {
   };
 
   const displayFileName = (log: LogEntry) => {
-    if (log.file_name && log.file_name !== "") return log.file_name;
-    if (log.file_path) {
-      const parts = log.file_path.replace(/\\/g, "/").split("/");
-      return parts[parts.length - 1];
+    // Langsung prioritaskan file_name dari backend
+    if (log.file_name && log.file_name !== "") {
+      return log.file_name;
     }
+
+    // Jika file_name kosong, baru fallback ke path (ambil nama file di ujung path)
+    if (log.file_path) {
+      // Menghilangkan folder dan hanya mengambil nama file saja
+      return log.file_path.split(/[/\\]/).pop() || null;
+    }
+
     return null;
   };
 
