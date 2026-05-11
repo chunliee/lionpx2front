@@ -29,7 +29,7 @@ const getCurrentMonth = () => {
 
 const roleAccess: Record<string, string[]> = {
   admin: ["all"],
-  role1: ["kof", "kif", "sof", "sif", "fro", "rd"],
+  role1: ["kof", "kif", "sof", "sif", "fro", "frd"],
   role2: ["pof", "def", "tuc", "stt", "kpf", "kdf"],
 };
 
