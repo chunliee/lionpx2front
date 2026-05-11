@@ -19,6 +19,8 @@ export default function ExportICPage() {
   const baseUrl = `http://${typeof window !== "undefined" ? window.location.hostname : "localhost"}:8083`;
 
   const [activeModal, setActiveModal] = useState<string | null>(null);
+  // Melacak jobId mana yang sedang dalam proses request download
+  const [downloadingIds, setDownloadingIds] = useState<string[]>([]);
 
   // 2. State untuk menampung daftar job yang sedang berjalan
   const [activeJobs, setActiveJobs] = useState<ActiveJob[]>([]);
@@ -95,10 +97,38 @@ export default function ExportICPage() {
   };
 
   // 5. Handler Download
-  const handleDownload = (jobId: string) => {
-    window.open(`${baseUrl}/export/download/${jobId}`, "_blank");
-  };
+  const handleDownload = async (jobId: string) => {
+    // Mulai loading
+    setDownloadingIds((prev) => [...prev, jobId]);
 
+    try {
+      const res = await fetch(`${baseUrl}/export/download/${jobId}`);
+      if (!res.ok) throw new Error("Gagal mengunduh file");
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+
+      // Mencoba mengambil nama file dari job info atau default
+      const jobInfo = activeJobs.find((j) => j.jobId === jobId);
+      const fileName = jobInfo
+        ? `${jobInfo.displayLabel.replace(/\s+/g, "_")}.zip`
+        : `export_${jobId}.zip`;
+
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert("Gagal mendownload file, silakan coba lagi.");
+    } finally {
+      // Matikan loading
+      setDownloadingIds((prev) => prev.filter((id) => id !== jobId));
+    }
+  };
   const menu = [
     { id: "mn", label: "ID Mitra (MN)" },
     { id: "ic", label: "Detail STT (M.IC)" },
@@ -204,10 +234,25 @@ export default function ExportICPage() {
 
               {job.status === "done" ? (
                 <button
+                  disabled={downloadingIds.includes(job.jobId)}
                   onClick={() => handleDownload(job.jobId)}
-                  className="w-full bg-black text-white py-2 rounded-xl text-[10px] font-black uppercase hover:bg-gray-800 transition-all shadow-lg active:scale-95"
+                  className={`w-full py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 ${
+                    downloadingIds.includes(job.jobId)
+                      ? "bg-gray-400 cursor-not-allowed text-white"
+                      : "bg-black text-white hover:bg-gray-800"
+                  }`}
                 >
-                  Download File
+                  {downloadingIds.includes(job.jobId) ? (
+                    <>
+                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <i className="ri-download-line text-xs"></i>
+                      Download File
+                    </>
+                  )}
                 </button>
               ) : (
                 <div className="space-y-1">
