@@ -48,6 +48,7 @@ export default function ReportPage() {
   const [activeJobs, setActiveJobs] = useState<ActiveJob[]>([]);
   const [isQueueOpen, setIsQueueOpen] = useState(true);
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [downloadingIds, setDownloadingIds] = useState<string[]>([]);
   const [userInfo, setUserInfo] = useState<{
     name: string;
     role: string;
@@ -165,6 +166,11 @@ export default function ReportPage() {
     itemKey: string,
     displayLabel: string,
   ) => {
+    const downloadKey = `${jobId}-${partIdx}`;
+
+    // 1. Tambahkan ke list downloading
+    setDownloadingIds((prev) => [...prev, downloadKey]);
+
     try {
       const response = await fetch(
         `${baseUrl}/engine/${itemKey.toLowerCase()}/download?job_id=${jobId}&part=${partIdx}`,
@@ -176,7 +182,6 @@ export default function ReportPage() {
       const a = document.createElement("a");
       const safeName = displayLabel.replace(/[\s|]+/g, "_");
 
-      // Nama file dinamis: Part 1, Part 2, dst.
       a.href = url;
       a.download = `${safeName}_${selectedMonth}_PART${partIdx + 1}.csv`;
       document.body.appendChild(a);
@@ -185,9 +190,11 @@ export default function ReportPage() {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       alert("Gagal mendownload file");
+    } finally {
+      // 2. Hapus dari list downloading setelah selesai (berhasil/gagal)
+      setDownloadingIds((prev) => prev.filter((id) => id !== downloadKey));
     }
   };
-
   const handleRunEngine = async (item: string) => {
     const formData = new FormData();
     formData.append("month", selectedMonth);
@@ -378,25 +385,46 @@ export default function ReportPage() {
                     <div className="mt-3 flex flex-col gap-2 animate-in slide-in-from-bottom-2 duration-300">
                       {(job.filePaths || "Result")
                         .split("|")
-                        .map((_, idx, all) => (
-                          <button
-                            key={idx}
-                            onClick={() =>
-                              handleDownloadPart(
-                                job.jobId,
-                                idx,
-                                job.itemName,
-                                job.displayLabel,
-                              )
-                            }
-                            className="w-full bg-black text-white py-2.5 rounded-xl text-[10px] font-bold uppercase flex items-center justify-center gap-2 hover:bg-gray-800 active:scale-95 transition-all shadow-md"
-                          >
-                            <i className="ri-download-cloud-2-line text-xs"></i>
-                            {all.length > 1
-                              ? `Download Part ${idx + 1}`
-                              : "Download Result"}
-                          </button>
-                        ))}
+                        .map((_, idx, all) => {
+                          const isDownloading = downloadingIds.includes(
+                            `${job.jobId}-${idx}`,
+                          );
+
+                          return (
+                            <button
+                              key={idx}
+                              disabled={isDownloading}
+                              onClick={() =>
+                                handleDownloadPart(
+                                  job.jobId,
+                                  idx,
+                                  job.itemName,
+                                  job.displayLabel,
+                                )
+                              }
+                              className={`w-full py-2.5 rounded-xl text-[10px] font-bold uppercase flex items-center justify-center gap-2 transition-all shadow-md ${
+                                isDownloading
+                                  ? "bg-gray-400 cursor-not-allowed"
+                                  : "bg-black text-white hover:bg-gray-800 active:scale-95"
+                              }`}
+                            >
+                              {isDownloading ? (
+                                <>
+                                  {/* Animasi Spinner Sederhana */}
+                                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                  Preparing File...
+                                </>
+                              ) : (
+                                <>
+                                  <i className="ri-download-cloud-2-line text-xs"></i>
+                                  {all.length > 1
+                                    ? `Download Part ${idx + 1}`
+                                    : "Download Result"}
+                                </>
+                              )}
+                            </button>
+                          );
+                        })}
                     </div>
                   ) : (
                     <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden mt-2">
