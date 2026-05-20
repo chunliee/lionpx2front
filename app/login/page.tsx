@@ -140,8 +140,7 @@ export default function LoginPage() {
             />
           </div>
         </div>
-
-        <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-md border-4 border-red-600 rounded-3xl p-6 sm:p-8 bg-white">
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
               <label className="block text-[10px] font-black uppercase text-gray-500 tracking-wider">
@@ -180,10 +179,10 @@ export default function LoginPage() {
             </div>
 
             {/* {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 text-[10px] font-bold p-3 rounded-xl text-center">
-                {error}
-              </div>
-            )} */}
+      <div className="bg-red-50 border border-red-200 text-red-600 text-[10px] font-bold p-3 rounded-xl text-center">
+        {error}
+      </div>
+    )} */}
 
             <button
               type="submit"
@@ -193,7 +192,7 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="mt-4 text-center text-[10px] font-bold text-gray-400 uppercase">
+          <p className="mt-6 text-center text-[10px] font-bold text-gray-400 uppercase">
             © 2026 - Data Analyst Dev
           </p>
         </div>
