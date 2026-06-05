@@ -115,6 +115,7 @@ export default function ExportUniversalModalv2({
     shipmentList: "",
     externalList: "",
     kategoriChecklist: [] as string[],
+    masterJobList: "",
   });
   const [userInfo, setUserInfo] = useState<{
     name: string;
@@ -162,6 +163,7 @@ export default function ExportUniversalModalv2({
         shipmentList: "",
         externalList: "",
         kategoriChecklist: [],
+        masterJobList: "",
       });
     }
   }, [currentType, isOpen, masterColumns, lockedColumns]);
@@ -205,6 +207,7 @@ export default function ExportUniversalModalv2({
         mitra_code_list: filters.mitraCodeList,
         "3lc_list": filters.tlcList,
         product_route_list: filters.productRouteList,
+        master_job_id_list: filters.masterJobList,
       };
 
       Object.entries(filterFields).forEach(([key, value]) => {
@@ -724,6 +727,19 @@ export default function ExportUniversalModalv2({
                 />
               </div>
             )}
+            <div className="space-y-1">
+              <label className="text-[9px] font-black uppercase text-gray-400">
+                Master Job ID
+              </label>
+              <textarea
+                placeholder=""
+                value={filters.masterJobList}
+                onChange={(e) =>
+                  setFilters({ ...filters, masterJobList: e.target.value })
+                }
+                className="w-full h-16 bg-gray-100 p-3 rounded-lg text-[10px] font-mono outline-none focus:ring-1 focus:ring-black resize-none"
+              />
+            </div>
             {/* SECTION CSV UPLOAD */}
             {(hasSTT || hasCargo) && (
               <div className="mt-4 p-3 bg-[#D71920] border border-[#A11217] rounded-xl shadow-md">
