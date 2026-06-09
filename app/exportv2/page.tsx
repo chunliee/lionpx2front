@@ -148,6 +148,10 @@ export default function ExportICPage() {
       item.id.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
+  const handleCloseJob = (jobId: string) => {
+    setActiveJobs((prev) => prev.filter((job) => job.jobId !== jobId));
+  };
+
   return (
     <div className="flex min-h-screen bg-white font-poppins text-black relative">
       <aside className="w-64 border-r border-gray-100 flex flex-col fixed h-full bg-white z-10">
@@ -212,62 +216,86 @@ export default function ExportICPage() {
 
       {/* 6. POPUP QUEUE (Pojok Kanan Bawah) */}
       {activeJobs.length > 0 && (
-        <div className="fixed bottom-6 right-6 w-80 flex flex-col gap-3 z-[60]">
-          <h3 className="text-[10px] font-black uppercase text-gray-400 px-2 tracking-widest">
+        <div className="fixed bottom-6 right-6 w-80 flex flex-col gap-3 z-[60] max-h-[80vh] overflow-y-auto scrollbar-hide">
+          <h3 className="text-[10px] font-black uppercase text-gray-400 px-2 tracking-widest block">
             Active Exports
           </h3>
           {activeJobs.map((job) => (
             <div
               key={job.jobId}
-              className="bg-white border border-gray-100 shadow-2xl rounded-2xl p-4 animate-in slide-in-from-right duration-300"
+              className="bg-white border border-gray-100 shadow-2xl rounded-2xl p-4 animate-in slide-in-from-right duration-300 flex flex-col h-auto min-h-[85px] w-full clear-both"
             >
-              <div className="flex justify-between items-start mb-2">
-                <span className="text-[10px] font-black uppercase truncate w-40">
+              {/* Header Notif (Judul di kiri, Status & Tombol X di kanan sejajar) */}
+              <div className="flex justify-between items-center gap-2 w-full mb-3">
+                {/* Title Menu */}
+                <span className="text-[10px] font-black uppercase truncate block max-w-[120px]">
                   {job.displayLabel}
                 </span>
-                <span
-                  className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${job.status === "done" ? "bg-green-100 text-green-600" : "bg-blue-100 text-blue-600 animate-pulse"}`}
-                >
-                  {job.status.toUpperCase()}
-                </span>
+
+                {/* Container Kanan (Status Badge + Tombol X Sejajar) */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span
+                    className={`text-[9px] font-bold px-2 py-0.5 rounded-full block whitespace-nowrap ${
+                      job.status === "done"
+                        ? "bg-green-100 text-green-600"
+                        : job.status === "failed"
+                          ? "bg-red-100 text-red-600"
+                          : "bg-blue-100 text-blue-600 animate-pulse"
+                    }`}
+                  >
+                    {job.status.toUpperCase()}
+                  </span>
+
+                  {/* Tombol X pas di sebelah status */}
+                  <button
+                    onClick={() => handleCloseJob(job.jobId)}
+                    className="text-gray-400 hover:text-black font-bold text-base transition-colors w-5 h-5 flex items-center justify-center rounded-full hover:bg-gray-100 shrink-0"
+                    title="Dismiss"
+                  >
+                    &times;
+                  </button>
+                </div>
               </div>
 
-              {job.status === "done" ? (
-                <button
-                  disabled={downloadingIds.includes(job.jobId)}
-                  onClick={() => handleDownload(job.jobId)}
-                  className={`w-full py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 ${
-                    downloadingIds.includes(job.jobId)
-                      ? "bg-gray-400 cursor-not-allowed text-white"
-                      : "bg-black text-white hover:bg-gray-800"
-                  }`}
-                >
-                  {downloadingIds.includes(job.jobId) ? (
-                    <>
-                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Downloading...
-                    </>
-                  ) : (
-                    <>
-                      <i className="ri-download-line text-xs"></i>
-                      Download File
-                    </>
-                  )}
-                </button>
-              ) : (
-                <div className="space-y-1">
-                  <div className="flex justify-between text-[9px] font-bold">
-                    <span>Progress</span>
-                    <span>{Math.round(job.percentage)}%</span>
+              {/* Konten Fleksibel Berdasarkan Status */}
+              <div className="w-full block mt-auto">
+                {job.status === "done" ? (
+                  <button
+                    disabled={downloadingIds.includes(job.jobId)}
+                    onClick={() => handleDownload(job.jobId)}
+                    className={`w-full py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 ${
+                      downloadingIds.includes(job.jobId)
+                        ? "bg-gray-400 cursor-not-allowed text-white"
+                        : "bg-black text-white hover:bg-gray-800"
+                    }`}
+                  >
+                    {downloadingIds.includes(job.jobId) ? (
+                      <>
+                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Downloading...
+                      </>
+                    ) : (
+                      <>
+                        <i className="ri-download-line text-xs"></i>
+                        Download File
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <div className="space-y-1 w-full">
+                    <div className="flex justify-between text-[9px] font-bold">
+                      <span>Progress</span>
+                      <span>{Math.round(job.percentage)}%</span>
+                    </div>
+                    <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                      <div
+                        className="bg-black h-full transition-all duration-500"
+                        style={{ width: `${job.percentage}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                    <div
-                      className="bg-black h-full transition-all duration-500"
-                      style={{ width: `${job.percentage}%` }}
-                    />
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           ))}
         </div>
