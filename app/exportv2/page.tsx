@@ -249,7 +249,7 @@ export default function ExportICPage() {
                   {/* Tombol X pas di sebelah status */}
                   <button
                     onClick={() => handleCloseJob(job.jobId)}
-                    className="text-gray-400 hover:text-black font-bold text-base transition-colors w-5 h-5 flex items-center justify-center rounded-full hover:bg-gray-100 shrink-0"
+                    className="text-gray-400  hover:text-red-600 font-bold text-base transition-colors w-5 h-5 flex items-center justify-center rounded-full hover:bg-green-100 shrink-0"
                     title="Dismiss"
                   >
                     &times;
